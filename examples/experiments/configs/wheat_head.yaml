@@ -1,0 +1,43 @@
+experiment:
+  name: wheat_head
+  seed_start: 42
+  n_replications: 3
+  n_optuna_trials: 30
+  optuna_objective: accuracy
+  optuna_direction: maximize
+  output_dir: results/wheat_head
+
+data:
+  csv_path: data/gwhd/train.csv
+  image_dir: data/gwhd/train
+  cache_dir: data/gwhd/cache
+  latent_dim: 16       # K = 16 (conservative)
+  n_locations: 256     # 16x16 patch grid
+  train_ratio: 0.7
+  val_ratio: 0.15
+  backbones:
+    - resnet152
+    - convnext_tiny
+    - vit_b_16
+    - sam_vit_h
+
+adapter:
+  admm:
+    rho: 5.0
+    dual_momentum: 0.2
+    max_iters: 200
+    min_outer: 50
+    tol: 1.0e-4
+  training:
+    lr_mu: 1.0e-3
+    batch_size: 32
+    pretrain_epochs: 10
+  basis:
+    phi_every: 5
+    phi_freeze: 100
+    matrix_reg: 1.0e-6
+    irl1_max_iters: 10
+    irl1_eps: 1.0e-6
+    irl1_tol: 5.0e-4
+  tau_range: [1.0e-4, 1.0e+2]
+  task: binary

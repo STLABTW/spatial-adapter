@@ -1,0 +1,40 @@
+experiment:
+  name: synthetic_1d
+  seed_start: 1
+  n_replications: 10
+  n_optuna_trials: 20
+  output_dir: results/synthetic_1d
+
+data:
+  n_locations: 512
+  n_time_steps: 1024
+  noise_std: 4.0
+  eigenvalue: 25.0
+  latent_dim: 1
+  train_ratio: 0.7
+  val_ratio: 0.15
+  # DGP parameters
+  eta_rho: 0.8
+  f_rho: 0.6
+  global_mean: 50.0
+  feature_noise_std: 0.01
+
+adapter:
+  admm:
+    rho: 1.0
+    dual_momentum: 0.2
+    max_iters: 3000
+    min_outer: 20
+    tol: 1.0e-4
+  training:
+    lr_mu: 1.0e-2
+    batch_size: 64
+    pretrain_epochs: 5
+  basis:
+    phi_every: 5
+    phi_freeze: 200
+    matrix_reg: 1.0e-6
+    irl1_max_iters: 10
+    irl1_eps: 1.0e-6
+    irl1_tol: 5.0e-4
+  tau_range: [1.0e-4, 1.0e+8]

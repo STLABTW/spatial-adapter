@@ -1,0 +1,49 @@
+name: Test
+
+on:
+  push:
+    branches: ["main", "develop"]
+  pull_request:
+    branches: ["main", "develop"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install system deps (cmake + armadillo + openblas for C++ ext)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential libarmadillo-dev libopenblas-dev liblapack-dev
+
+      - name: Install package (editable; scikit-build-core compiles spatial_utils.so)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,vision]"
+
+      - name: Test with pytest + coverage
+        run: |
+          pytest tests/ \
+            -m "not slow and not integration" \
+            --cov=spatial_adapter \
+            --cov-fail-under=85 \
+            --cov-report=xml \
+            --cov-report=term \
+            -v --tb=short
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}

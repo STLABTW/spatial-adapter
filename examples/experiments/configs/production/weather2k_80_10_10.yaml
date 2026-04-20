@@ -1,0 +1,50 @@
+# ─── Table 5: Weather2K reconstruction — 80/10/10 split ─────────
+# Paper: "Weather2K reconstruction results under different time splits"
+# Metrics: RMSE, MAE, R², CovFrob
+experiment:
+  name: weather2k_80_10_10
+  seed_start: 1
+  n_replications: 100
+  n_optuna_trials: 50
+  output_dir: results/production/weather2k_80_10_10
+
+data:
+  npy_path: data/weather2k/weather2k.npy
+  target_var_idx: 2
+  lat_idx: 0
+  lon_idx: 1
+  t_keep: 1000
+  latent_dim: 40
+  space_ratio_keep: 0.1
+  train_ratio: 0.8
+  val_ratio: 0.1
+  test_ratio: 0.1
+
+first_stage:
+  # https://github.com/pratiknag/Space-Time.DeepKriging/blob/main/50kSimulation-space-time_DeepKriging.ipynb
+  type: stdk
+  epochs: 350
+  lr: 1.0e-3
+  weight_decay: 1.0e-4
+  batch_size: 512
+  patience: 30
+
+adapter:
+  admm:
+    rho: 5.0
+    dual_momentum: 0.2
+    max_iters: 3000
+    min_outer: 100
+    tol: 1.0e-4
+  training:
+    lr_mu: 1.0e-3
+    batch_size: 128
+    pretrain_epochs: 5
+  basis:
+    phi_every: 5
+    phi_freeze: 100
+    matrix_reg: 1.0e-6
+    irl1_max_iters: 10
+    irl1_eps: 1.0e-6
+    irl1_tol: 5.0e-4
+  tau_range: [1.0e-4, 1.0e+8]

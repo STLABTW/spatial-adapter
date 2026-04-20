@@ -1,0 +1,6 @@
+# Large data files — use download scripts instead
+gwhd/train/
+gwhd/train.csv
+gwhd/cache/
+kaust/*.csv
+weather2k/*.npy

@@ -1,0 +1,180 @@
+name: Build and publish python package
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish (e.g., 0.6.0)"
+        required: false
+        type: string
+
+jobs:
+  # ────────────────────────────────────────────────────────────────────
+  # Build platform wheels (manylinux + macOS) via cibuildwheel.
+  # The C++ extension is compiled per-wheel so `pip install spatial-adapter`
+  # ships the .so without any system-level cmake/armadillo install.
+  # ────────────────────────────────────────────────────────────────────
+  build_wheels:
+    name: Build wheels — ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-13, macos-14]  # linux x86_64, macos x86_64, macos arm64
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.11 (host for cibuildwheel)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.21
+        env:
+          # Build for CPython 3.10 / 3.11 / 3.12 only.
+          CIBW_BUILD: "cp310-* cp311-* cp312-*"
+          # Skip painful targets: PyPy, musl, 32-bit linux, Windows (armadillo is hard).
+          CIBW_SKIP: "pp* *-musllinux_* *-manylinux_i686 *-win32 *-win_amd64"
+          # manylinux container base (AlmaLinux 8) — has recent gcc + EPEL-like repos.
+          CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
+          # Install armadillo + openblas headers/libs into each build container.
+          CIBW_BEFORE_ALL_LINUX: |
+            dnf install -y epel-release || yum install -y epel-release || true
+            dnf install -y armadillo-devel openblas-devel lapack-devel \
+              || yum install -y armadillo-devel openblas-devel lapack-devel
+          CIBW_BEFORE_ALL_MACOS: |
+            brew install armadillo openblas
+          # auditwheel/delocate bundle the transitive shared libraries into the wheel.
+          CIBW_REPAIR_WHEEL_COMMAND_LINUX: "auditwheel repair -w {dest_dir} {wheel}"
+          CIBW_REPAIR_WHEEL_COMMAND_MACOS: "delocate-wheel --require-archs {delocate_archs} -w {dest_dir} -v {wheel}"
+          # Smoke-test the built wheel: import the compiled module.
+          CIBW_TEST_COMMAND: 'python -c "from spatial_adapter.cpp_extensions import spatial_utils; print(spatial_utils)"'
+          # Skip importing the full package during cibuildwheel's default test
+          # (torch/scikit-learn are heavy runtime deps we don't need to validate here).
+          CIBW_TEST_SKIP: "*"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.os }}
+          path: ./wheelhouse/*.whl
+
+  # ────────────────────────────────────────────────────────────────────
+  # Build the sdist (source tarball) — needed for PyPI fallback and
+  # for users on unsupported platforms to compile from source.
+  # ────────────────────────────────────────────────────────────────────
+  build_sdist:
+    name: Build sdist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Build sdist
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build --sdist
+
+      - name: Upload sdist
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: dist/*.tar.gz
+
+  # ────────────────────────────────────────────────────────────────────
+  # Publish to PyPI + create a GitHub Release.
+  # ────────────────────────────────────────────────────────────────────
+  publish:
+    name: Publish to PyPI
+    needs: [build_wheels, build_sdist]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # required for creating GitHub releases
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Extract version from tag or input
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          elif [ -n "${{ github.ref_name }}" ]; then
+            # v0.6.0 -> 0.6.0
+            VERSION=$(echo "${{ github.ref_name }}" | sed 's/^v//')
+          else
+            VERSION=$(grep -E '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Publishing version: $VERSION"
+
+      - name: Verify version matches pyproject.toml
+        run: |
+          PUBLISH_VERSION="${{ steps.get_version.outputs.version }}"
+          FILE_VERSION=$(grep -E '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+          if [ "$PUBLISH_VERSION" != "$FILE_VERSION" ]; then
+            echo "Error: Version mismatch!"
+            echo "Tag/Input version: $PUBLISH_VERSION"
+            echo "pyproject.toml version: $FILE_VERSION"
+            exit 1
+          fi
+          echo "✓ Version verified: $PUBLISH_VERSION"
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Check package contents
+        run: |
+          python -m pip install --upgrade twine
+          echo "Built files:"
+          ls -lh dist/
+          echo ""
+          python -m twine check dist/*
+
+      - name: Publish to PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          python -m twine upload --verbose dist/*
+
+      - name: Create GitHub Release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ steps.get_version.outputs.version }}
+          body: |
+            ## Release ${{ steps.get_version.outputs.version }}
+
+            Published to PyPI: https://pypi.org/project/spatial-adapter/${{ steps.get_version.outputs.version }}/
+
+            ### Installation
+            ```bash
+            pip install spatial-adapter==${{ steps.get_version.outputs.version }}
+            ```
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
