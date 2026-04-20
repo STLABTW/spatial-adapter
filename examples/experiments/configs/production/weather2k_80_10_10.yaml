@@ -1,4 +1,4 @@
-# ─── Table 5: Weather2K reconstruction — 80/10/10 split ─────────
+# Table 5: Weather2K reconstruction — 80/10/10 split
 # Paper: "Weather2K reconstruction results under different time splits"
 # Metrics: RMSE, MAE, R², CovFrob
 experiment:

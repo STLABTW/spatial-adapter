@@ -1,4 +1,4 @@
-# ─── Table 6: Weather2K spatial prediction at held-out stations ──
+# Table 6: Weather2K spatial prediction at held-out stations
 # Paper: "Spatial prediction at 20% held-out Weather2K stations"
 # Metrics: RMSE, MPIW, CP
 experiment:

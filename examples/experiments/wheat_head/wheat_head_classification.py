@@ -47,8 +47,7 @@ from spatial_adapter.models.spatial_adapter import (
     TrainingConfig,
 )
 
-# ── Experiment configuration ─────────────────────────────────────────────────
-
+# Experiment configuration
 BACKBONES = ["resnet152", "convnext_tiny", "vit_b_16", "sam_vit_h"]
 
 BACKBONE_FEATURE_DIMS = {
@@ -61,10 +60,7 @@ BACKBONE_FEATURE_DIMS = {
 N_LOCATIONS = 256  # 16 × 16 patch grid
 LATENT_DIM = 16  # K basis functions
 
-
-# ── Two-stage trend wrapper ─────────────────────────────────────────────────
-
-
+# Two-stage trend wrapper
 class TwoStageTrend(nn.Module):
     """
     Paper's two-stage trend: forward(x) = frozen_head(x) + mu(x).
@@ -100,9 +96,7 @@ class TwoStageTrend(nn.Module):
         return list(self.mu_net.parameters())
 
 
-# ── Helpers ──────────────────────────────────────────────────────────────────
-
-
+# Helpers
 def _make_config(
     task: str = "binary", max_iters: int = 200
 ) -> SpatialNeuralAdapterConfig:
@@ -224,9 +218,7 @@ def _evaluate_uq(
     return acc, cp, mpiw
 
 
-# ── Single-seed run ──────────────────────────────────────────────────────────
-
-
+# Single-seed run
 def run_single_seed(
     backbone_name: str,
     csv_path: str,
@@ -268,7 +260,7 @@ def run_single_seed(
     feature_dim = val_cont.shape[-1]
     results = {}
 
-    # ── Stage 1: Train backbone classifier (shared across all configs) ───
+    # Stage 1: Train backbone classifier (shared across all configs)
     # Per the paper: pretrain backbone + head, then freeze for Stage 2.
     trend_stage1 = _build_trend_model(feature_dim, device)
     config_s1 = _make_config(max_iters=0)
@@ -288,12 +280,12 @@ def run_single_seed(
     trainer_s1.pretrain_trend(epochs=10, loss_fn="bce")
     frozen_state = copy.deepcopy(trend_stage1.state_dict())
 
-    # ── 1. Backbone only (= Stage 1 result) ─────────────────────────────
+    # 1. Backbone only (= Stage 1 result)
     acc, f1, auc = _evaluate_backbone_only(trend_stage1, test_cont, test_y, device)
     results["backbone_only"] = {"accuracy": acc, "f1": f1, "auc": auc}
     print(f"  [backbone_only] acc={acc:.4f} f1={f1:.4f} auc={auc:.4f}")
 
-    # ── Stage 2 helper: create adapter with frozen head + learnable µ ────
+    # Stage 2 helper: create adapter with frozen head + learnable µ
     def _make_adapter(tau1, tau2):
         """Build adapter per the paper: frozen backbone head + learnable µ correction."""
         # Rebuild and load frozen Stage 1 head
@@ -321,14 +313,14 @@ def run_single_seed(
         trainer.init_basis_dense()
         return trainer
 
-    # ── 2. Adapter (unreg.) — τ₁ = τ₂ = 0 ───────────────────────────────
+    # 2. Adapter (unreg.) — τ₁ = τ₂ = 0
     trainer_unreg = _make_adapter(0.0, 0.0)
     trainer_unreg.run()
     acc, f1, auc = _evaluate(trainer_unreg, test_cont, test_y, device)
     results["adapter_unreg"] = {"accuracy": acc, "f1": f1, "auc": auc}
     print(f"  [adapter_unreg] acc={acc:.4f} f1={f1:.4f} auc={auc:.4f}")
 
-    # ── 3. Adapter (reg.) — τ₁, τ₂ tuned via Optuna ─────────────────────
+    # 3. Adapter (reg.) — τ₁, τ₂ tuned via Optuna
     def objective(trial):
         tau1 = trial.suggest_float("tau1", 1e-4, 1e2, log=True)
         tau2 = trial.suggest_float("tau2", 1e-6, 1e0, log=True)
@@ -349,7 +341,7 @@ def run_single_seed(
     results["adapter_reg"] = {"accuracy": acc, "f1": f1, "auc": auc}
     print(f"  [adapter_reg]   acc={acc:.4f} f1={f1:.4f} auc={auc:.4f}")
 
-    # ── Table 6: UQ for this backbone ────────────────────────────────────
+    # Table 6: UQ for this backbone
     # Backbone only: no UQ
     results["uq_backbone"] = {
         "accuracy": results["backbone_only"]["accuracy"],
@@ -366,9 +358,7 @@ def run_single_seed(
     return results
 
 
-# ── Aggregation ──────────────────────────────────────────────────────────────
-
-
+# Aggregation
 def aggregate_results(
     all_results: Dict[str, List[Dict]],
 ) -> None:
@@ -443,9 +433,7 @@ def aggregate_results(
             print(f"{label:<28} {acc_str:<16} {cp_str:<14} {mpiw_str:<14}")
 
 
-# ── Main ─────────────────────────────────────────────────────────────────────
-
-
+# Main
 def main():
     parser = argparse.ArgumentParser(
         description="GWHD Wheat Head Classification (Section 3.4)"

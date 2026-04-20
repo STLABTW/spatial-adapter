@@ -24,10 +24,7 @@ from spatial_adapter.models.trend_model import TrendModel
 
 logger = setup_logger("spatial_adapter")
 
-
-# ── Config dataclasses ────────────────────────────────────────────────
-
-
+# Config dataclasses
 @dataclass
 class ADMMConfig:
     rho: float = 5.0
@@ -114,9 +111,7 @@ class SpatialNeuralAdapterConfig:
             logger.info(f"  {k}: {v}")
 
 
-# ── Main ADMM trainer ─────────────────────────────────────────────────
-
-
+# Main ADMM trainer
 class SpatialNeuralAdapter:
     """Three-block mini-batch ADMM: θ-step (trend), Φ-step (basis), Z-step (consensus)."""
 
@@ -191,16 +186,14 @@ class SpatialNeuralAdapter:
         self._A = None
         self._eta_last = None
 
-    # ── Residual ──────────────────────────────────────────────────
-
+    # Residual
     def _residual_R(self, y: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
         """R = g†(Y) − f_θ(X).  Regression: Y−μ.  Binary: logit(Y)−μ."""
         if not self._is_binary:
             return y - self.trend(x)
         return torch.special.logit(y.clamp(1e-7, 1.0 - 1e-7)) - self.trend(x)
 
-    # ── Stage 1: pretrain trend ───────────────────────────────────
-
+    # Stage 1: pretrain trend
     def pretrain_trend(
         self,
         epochs: Optional[int] = None,
@@ -247,8 +240,7 @@ class SpatialNeuralAdapter:
         self.z_val.copy_(self._residual_R(self.val_y, self.val_cont))
         self.u_val.zero_()
 
-    # ── Stage 2: ADMM loop ────────────────────────────────────────
-
+    # Stage 2: ADMM loop
     def run(self) -> float:
         """Run ADMM optimisation.  Returns best validation metric.
 
@@ -335,8 +327,7 @@ class SpatialNeuralAdapter:
         logger.info(f"Training completed in {self.global_iter} iterations")
         return self.best_val
 
-    # ── (T) Trend step ────────────────────────────────────────────
-
+    # (T) Trend step
     def _theta_loss(self, yb, xb, zb, ub):
         """(ρ/2)‖(Z+U) − R‖².  Regression rescales by y_std."""
         if not self._is_binary:
@@ -370,8 +361,7 @@ class SpatialNeuralAdapter:
             loss.backward()
             self.opt_mu.step()
 
-    # ── (B) Basis step ────────────────────────────────────────────
-
+    # (B) Basis step
     @torch.no_grad()
     def _phi_step(self, batch_indices: Optional[slice] = None) -> float:
         """Update Φ from the mini-batch consensus Z.
@@ -449,8 +439,7 @@ class SpatialNeuralAdapter:
         self.basis.basis.data.copy_(new_phi)
         return float(torch.norm(new_phi - old, p="fro").item())
 
-    # ── (Z) Consensus step ────────────────────────────────────────
-
+    # (Z) Consensus step
     @torch.no_grad()
     def _z_step(
         self, batch_indices: Optional[slice] = None, *, val: bool = False
@@ -514,8 +503,7 @@ class SpatialNeuralAdapter:
                 u_batch.add_(self.beta * (u_batch - u_prev))
             self.u_train[batch_indices] = u_batch
 
-    # ── Validation ────────────────────────────────────────────────
-
+    # Validation
     @torch.no_grad()
     def _validate(self) -> Tuple[float, float, float]:
         """Regression: (rmse, 0, rmse).  Binary: (accuracy, f1, auc)."""
@@ -528,8 +516,7 @@ class SpatialNeuralAdapter:
         rmse = math.sqrt(F.mse_loss(y_hat, self.val_y).item())
         return rmse, 0.0, rmse
 
-    # ── Inference ─────────────────────────────────────────────────
-
+    # Inference
     @torch.no_grad()
     def reconstruct(
         self, cont_features: torch.Tensor, y_true: torch.Tensor

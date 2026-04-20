@@ -6,7 +6,6 @@ adapter via ADMM, and evaluates with a user-supplied callable. The cache
 persists across trials within a single ``run_optuna`` call.
 """
 
-from __future__ import annotations
 
 import copy
 import time
@@ -19,11 +18,11 @@ import torch.nn as nn
 from optuna.pruners import MedianPruner
 from torch.utils.data import DataLoader
 
-from spatial_adapter.models.spatial_basis_learner import SpatialBasisLearner
 from spatial_adapter.models.spatial_adapter import (
     SpatialNeuralAdapter,
     SpatialNeuralAdapterConfig,
 )
+from spatial_adapter.models.spatial_basis_learner import SpatialBasisLearner
 from spatial_adapter.tuning.model_cache import ModelCache
 
 EvaluateFn = Callable[[SpatialNeuralAdapter], Dict[str, float]]

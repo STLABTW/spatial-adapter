@@ -38,9 +38,8 @@ from spatial_adapter.models.spatial_adapter import (
 from spatial_adapter.tuning import AdapterTuner
 from spatial_adapter.utils.timer import TimerLog
 
-# ── Data container ───────────────────────────────────────────────────
 
-
+# Data container
 @dataclass
 class DataSplit:
     """Holds everything an experiment needs after data loading."""
@@ -58,8 +57,7 @@ class DataSplit:
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 
-# ── Result record ────────────────────────────────────────────────────
-
+# Result record
 RESULT_FIELDS = [
     "experiment",
     "seed",
@@ -89,9 +87,7 @@ def _record(
     return rows
 
 
-# ── Adapter config from YAML dict ───────────────────────────────────
-
-
+# Adapter config from YAML dict
 def build_adapter_config(cfg: dict) -> SpatialNeuralAdapterConfig:
     """Build SpatialNeuralAdapterConfig from a flat YAML dict."""
     admm = cfg.get("admm", {})
@@ -114,9 +110,7 @@ def build_adapter_config(cfg: dict) -> SpatialNeuralAdapterConfig:
     )
 
 
-# ── Base class ───────────────────────────────────────────────────────
-
-
+# Base class
 class BaseExperiment(ABC):
     """Abstract base for all Spatial Adapter experiments."""
 
@@ -157,8 +151,7 @@ class BaseExperiment(ABC):
 
         self.results: List[dict] = []
 
-    # ── Abstract methods (subclass implements) ───────────────────
-
+    # Abstract methods (subclass implements)
     @abstractmethod
     def load_data(self, seed: int) -> DataSplit:
         """Load and split data for one seed."""
@@ -179,8 +172,7 @@ class BaseExperiment(ABC):
         """Evaluate a trained adapter and return a metrics dict."""
         ...
 
-    # ── Shared pipeline ──────────────────────────────────────────
-
+    # Shared pipeline
     def run(self):
         """Run the full experiment across all seeds."""
         print(f"\n{'='*60}")

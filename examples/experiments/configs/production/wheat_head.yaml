@@ -1,4 +1,4 @@
-# ─── Tables 7 & 8: Wheat Head patch classification + UQ ─────────
+# Tables 7 & 8: Wheat Head patch classification + UQ
 # Paper Table 7: classification metrics across 4 backbones
 # Paper Table 8: UQ diagnostics (ResNet-152 only, computed from same run)
 # Metrics: Accuracy, AUC, F1, MPIW, CP, ECE

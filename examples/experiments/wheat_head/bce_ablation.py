@@ -30,10 +30,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 from spatial_adapter.data.gwhd import get_gwhd_dataloader_and_val
-from spatial_adapter.metrics import (
-    compute_binary_metrics,
-    expected_calibration_error,
-)
+from spatial_adapter.metrics import compute_binary_metrics, expected_calibration_error
 from spatial_adapter.models import (
     ClassificationWrapper,
     SpatialBasisLearner,
@@ -55,10 +52,7 @@ VARIANT_LABELS = {
     "irls": "(C) IRLS working response",
 }
 
-
-# ── Two-stage trend wrapper (same as main experiment) ──────────────────────
-
-
+# Two-stage trend wrapper (same as main experiment)
 class TwoStageTrend(nn.Module):
     def __init__(self, frozen_head: ClassificationWrapper, feature_dim: int):
         super().__init__()
@@ -82,9 +76,7 @@ class TwoStageTrend(nn.Module):
         return list(self.mu_net.parameters())
 
 
-# ── Helpers ────────────────────────────────────────────────────────────────
-
-
+# Helpers
 def _make_config(
     bce_variant: str = "variance_only",
     max_iters: int = 200,
@@ -207,9 +199,7 @@ def _count_basis_steps(config: SpatialNeuralAdapterConfig, total_iters: int) -> 
     return count
 
 
-# ── Single-seed run ────────────────────────────────────────────────────────
-
-
+# Single-seed run
 def run_single_seed(
     variant: str,
     csv_path: str,
@@ -278,9 +268,7 @@ def run_single_seed(
     return metrics
 
 
-# ── Main ───────────────────────────────────────────────────────────────────
-
-
+# Main
 def main():
     parser = argparse.ArgumentParser(
         description="BCE basis-update ablation (Tables 8 & 9)"
@@ -422,7 +410,7 @@ def main():
                 f"#basis={res['n_basis_calls']}"
             )
 
-    # ── Print Tables ──────────────────────────────────────────────────────
+    # Print Tables
     se = lambda arr: np.std(arr, ddof=1) / np.sqrt(len(arr)) if len(arr) > 1 else 0.0
 
     print("\n" + "=" * 90)

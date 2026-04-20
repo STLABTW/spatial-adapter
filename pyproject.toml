@@ -66,7 +66,7 @@ all = [
     "spatial-adapter[vision,interactive,forecasting,dev]",
 ]
 
-# ── scikit-build-core ─────────────────────────────────────────────────
+# scikit-build-core
 # Build backend for the pybind11/CMake C++ extension. Produces a platform
 # wheel (spatial_utils.so bundled) so `pip install spatial-adapter` works
 # without any system-level CMake/armadillo/openblas install.
@@ -86,8 +86,7 @@ wheel.packages = ["spatial_adapter"]
 # Rebuild the extension automatically on source edits for `pip install -e .`.
 editable.rebuild = true
 
-# ── Poetry (kept for backward compat with conda env scripts) ─────────
-
+# Poetry (kept for backward compat with conda env scripts)
 [tool.poetry]
 name = "spatial-adapter"
 version = "0.6.0"
@@ -122,8 +121,7 @@ pytest = "^7.0.0"
 pytest-cov = "^4.0.0"
 nbformat = "^5.10.4"
 
-# ── Tools ─────────────────────────────────────────────────────────────
-
+# Tools
 [tool.black]
 line-length = 88
 target-version = ['py310']

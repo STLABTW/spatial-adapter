@@ -48,12 +48,8 @@ class TestFrozenTrendFix:
     def frozen_trend_setup(self):
         """Create a minimal adapter with a frozen (zero-param) trend."""
         from spatial_adapter.data import generate_combined_synthetic_data
-        from spatial_adapter.models.spatial_basis_learner import (
-            SpatialBasisLearner,
-        )
-        from spatial_adapter.models.spatial_adapter import (
-            SpatialNeuralAdapterConfig,
-        )
+        from spatial_adapter.models.spatial_adapter import SpatialNeuralAdapterConfig
+        from spatial_adapter.models.spatial_basis_learner import SpatialBasisLearner
         from spatial_adapter.models.trend_model import TrendModel
 
         np.random.seed(0)
@@ -110,9 +106,7 @@ class TestFrozenTrendFix:
 
     def test_opt_mu_is_none(self, frozen_trend_setup):
         """When trend has no trainable params, opt_mu should be None."""
-        from spatial_adapter.models.spatial_adapter import (
-            SpatialNeuralAdapter,
-        )
+        from spatial_adapter.models.spatial_adapter import SpatialNeuralAdapter
 
         trend, basis, loader, cont, targets, locs, config = frozen_trend_setup
 
@@ -135,9 +129,7 @@ class TestFrozenTrendFix:
 
     def test_theta_step_no_crash(self, frozen_trend_setup):
         """_theta_step should return immediately without error."""
-        from spatial_adapter.models.spatial_adapter import (
-            SpatialNeuralAdapter,
-        )
+        from spatial_adapter.models.spatial_adapter import SpatialNeuralAdapter
 
         trend, basis, loader, cont, targets, locs, config = frozen_trend_setup
 
@@ -161,9 +153,7 @@ class TestFrozenTrendFix:
 
     def test_run_completes(self, frozen_trend_setup):
         """Full adapter.run() should complete without error."""
-        from spatial_adapter.models.spatial_adapter import (
-            SpatialNeuralAdapter,
-        )
+        from spatial_adapter.models.spatial_adapter import SpatialNeuralAdapter
 
         trend, basis, loader, cont, targets, locs, config = frozen_trend_setup
 

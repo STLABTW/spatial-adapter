@@ -14,7 +14,7 @@ set -e
 DATA_DIR="$(cd "$(dirname "$0")" && pwd)"
 echo "Data directory: $DATA_DIR"
 
-# ── 1. KAUST 2b_8 ──────────────────────────────────────────────────
+# 1. KAUST 2b_8
 echo ""
 echo "=== [1/3] KAUST Competition 2b_8 ==="
 KAUST_DIR="$DATA_DIR/kaust"
@@ -31,7 +31,7 @@ else
     ls -lh "$KAUST_DIR/"
 fi
 
-# ── 2. Weather2K ───────────────────────────────────────────────────
+# 2. Weather2K
 echo ""
 echo "=== [2/3] Weather2K ==="
 W2K_DIR="$DATA_DIR/weather2k"
@@ -46,7 +46,7 @@ else
     echo "  cp /path/to/weather2k.npy $W2K_DIR/"
 fi
 
-# ── 3. GWHD (Global Wheat Head Detection) ─────────────────────────
+# 3. GWHD (Global Wheat Head Detection)
 echo ""
 echo "=== [3/3] Global Wheat Head Detection ==="
 GWHD_DIR="$DATA_DIR/gwhd"

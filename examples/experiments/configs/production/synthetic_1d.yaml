@@ -1,4 +1,4 @@
-# ─── Table 3: Synthetic 1D benchmark ─────────────────────────────
+# Table 3: Synthetic 1D benchmark
 # Paper: "Reconstruction performance on the 1D synthetic benchmark"
 # Metrics: RMSE, MAE, R², CovFrob
 experiment:

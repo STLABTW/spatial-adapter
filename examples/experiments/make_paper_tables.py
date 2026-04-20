@@ -17,8 +17,6 @@ Usage
         --prefix smoke_
 """
 
-from __future__ import annotations
-
 import argparse
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -26,8 +24,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
-# ── Table specs ───────────────────────────────────────────────────────
-
+# Table specs
 # Each spec: list of (model_key, label_in_table, metrics_to_show)
 TABLE_SPECS: Dict[str, dict] = {
     "synthetic_1d": {
@@ -121,10 +118,7 @@ TABLE_SPECS: Dict[str, dict] = {
     },
 }
 
-
-# ── Aggregation helpers ───────────────────────────────────────────────
-
-
+# Aggregation helpers
 def mean_se(values: np.ndarray) -> Tuple[float, float]:
     """Mean and standard error across seeds."""
     n = len(values)
@@ -149,9 +143,7 @@ def aggregate(
     return m, se, len(vals)
 
 
-# ── Table renderers ───────────────────────────────────────────────────
-
-
+# Table renderers
 def render_simple_table(df: pd.DataFrame, spec: dict) -> List[str]:
     """Flat (model × metric) table, for Tables 1–4."""
     rows = []
@@ -239,9 +231,7 @@ def render_wheat_head_table6(df: pd.DataFrame, spec: dict) -> List[str]:
     return rows
 
 
-# ── Main ──────────────────────────────────────────────────────────────
-
-
+# Main
 def _load_results(
     results_root: Path, exp_name: str, prefix: str
 ) -> Optional[pd.DataFrame]:

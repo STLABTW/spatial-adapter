@@ -5,11 +5,11 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from spatial_adapter.data import get_synthetic_binary_dataloader_and_val
 from spatial_adapter.models.classification_wrapper import ClassificationWrapper
-from spatial_adapter.models.spatial_basis_learner import SpatialBasisLearner
 from spatial_adapter.models.spatial_adapter import (
     SpatialNeuralAdapter,
     SpatialNeuralAdapterConfig,
 )
+from spatial_adapter.models.spatial_basis_learner import SpatialBasisLearner
 from spatial_adapter.models.trend_model import TrendModel
 
 
@@ -853,9 +853,7 @@ class TestSpatialNeuralAdapter:
         assert 0 <= best <= 1.0
 
 
-# ─────────────────────────────────────────────────────────────────────
 # Inference helpers: reconstruct / predict / fit_forecaster
-# ─────────────────────────────────────────────────────────────────────
 
 
 def _make_regression_trainer(device):
@@ -875,15 +873,31 @@ def _make_regression_trainer(device):
     ).to(device)
     basis = SpatialBasisLearner(num_locations=N, latent_dim=2).to(device)
     config = {
-        "rho": 1.0, "dual_momentum": 0.0, "max_iters": 1, "min_outer": 1,
-        "lr_mu": 1e-3, "batch_size": T, "phi_every": 1, "phi_freeze": 1,
-        "tol": 1e-4, "matrix_reg": 1e-6, "irl1_max_iters": 2,
-        "irl1_eps": 1e-6, "irl1_tol": 1e-3, "pretrain_epochs": 1,
+        "rho": 1.0,
+        "dual_momentum": 0.0,
+        "max_iters": 1,
+        "min_outer": 1,
+        "lr_mu": 1e-3,
+        "batch_size": T,
+        "phi_every": 1,
+        "phi_freeze": 1,
+        "tol": 1e-4,
+        "matrix_reg": 1e-6,
+        "irl1_max_iters": 2,
+        "irl1_eps": 1e-6,
+        "irl1_tol": 1e-3,
+        "pretrain_epochs": 1,
     }
     return SpatialNeuralAdapter(
-        trend=trend, basis=basis, train_loader=loader,
-        val_cont=cont[:5].to(device), val_y=y[:5].to(device),
-        locs=locs, config=config, device=device, writer=None,
+        trend=trend,
+        basis=basis,
+        train_loader=loader,
+        val_cont=cont[:5].to(device),
+        val_y=y[:5].to(device),
+        locs=locs,
+        config=config,
+        device=device,
+        writer=None,
     )
 
 
@@ -915,22 +929,39 @@ class TestReconstruct:
 
     def test_binary_uses_logit_space(self, device):
         train_loader, val_cont, val_y, locs = get_synthetic_binary_dataloader_and_val(
-            n_samples=40, n_locations=3, feature_dim=8,
-            train_ratio=0.75, batch_size=8, seed=5,
+            n_samples=40,
+            n_locations=3,
+            feature_dim=8,
+            train_ratio=0.75,
+            batch_size=8,
+            seed=5,
         )
         _, cont, _ = train_loader.dataset.tensors
         _, N, p = cont.shape
         trend = ClassificationWrapper(feature_dim=p, n_locations=N).to(device)
         basis = SpatialBasisLearner(num_locations=N, latent_dim=2).to(device)
         trainer = SpatialNeuralAdapter(
-            trend=trend, basis=basis, train_loader=train_loader,
-            val_cont=val_cont.to(device), val_y=val_y.to(device), locs=locs,
+            trend=trend,
+            basis=basis,
+            train_loader=train_loader,
+            val_cont=val_cont.to(device),
+            val_y=val_y.to(device),
+            locs=locs,
             config={
-                "rho": 1.0, "max_iters": 1, "min_outer": 1, "lr_mu": 1e-3,
-                "batch_size": 8, "phi_every": 1, "phi_freeze": 1, "tol": 1e-4,
-                "matrix_reg": 1e-6, "pretrain_epochs": 1, "task": "binary",
+                "rho": 1.0,
+                "max_iters": 1,
+                "min_outer": 1,
+                "lr_mu": 1e-3,
+                "batch_size": 8,
+                "phi_every": 1,
+                "phi_freeze": 1,
+                "tol": 1e-4,
+                "matrix_reg": 1e-6,
+                "pretrain_epochs": 1,
+                "task": "binary",
             },
-            device=device, writer=None,
+            device=device,
+            writer=None,
         )
         out = trainer.reconstruct(val_cont.to(device), val_y.to(device))
         assert out.shape == val_y.shape
@@ -962,23 +993,40 @@ class TestPhiStepBceVariants:
 
     def _build_binary(self, device, bce_variant):
         train_loader, val_cont, val_y, locs = get_synthetic_binary_dataloader_and_val(
-            n_samples=40, n_locations=4, feature_dim=6,
-            train_ratio=0.75, batch_size=8, seed=11,
+            n_samples=40,
+            n_locations=4,
+            feature_dim=6,
+            train_ratio=0.75,
+            batch_size=8,
+            seed=11,
         )
         _, cont, _ = train_loader.dataset.tensors
         _, N, p = cont.shape
         trend = ClassificationWrapper(feature_dim=p, n_locations=N).to(device)
         basis = SpatialBasisLearner(num_locations=N, latent_dim=2).to(device)
         return SpatialNeuralAdapter(
-            trend=trend, basis=basis, train_loader=train_loader,
-            val_cont=val_cont.to(device), val_y=val_y.to(device), locs=locs,
+            trend=trend,
+            basis=basis,
+            train_loader=train_loader,
+            val_cont=val_cont.to(device),
+            val_y=val_y.to(device),
+            locs=locs,
             config={
-                "rho": 1.0, "max_iters": 1, "min_outer": 1, "lr_mu": 1e-3,
-                "batch_size": 8, "phi_every": 1, "phi_freeze": 10, "tol": 1e-4,
-                "matrix_reg": 1e-6, "pretrain_epochs": 1,
-                "task": "binary", "bce_variant": bce_variant,
+                "rho": 1.0,
+                "max_iters": 1,
+                "min_outer": 1,
+                "lr_mu": 1e-3,
+                "batch_size": 8,
+                "phi_every": 1,
+                "phi_freeze": 10,
+                "tol": 1e-4,
+                "matrix_reg": 1e-6,
+                "pretrain_epochs": 1,
+                "task": "binary",
+                "bce_variant": bce_variant,
             },
-            device=device, writer=None,
+            device=device,
+            writer=None,
         )
 
     def test_full_taylor_variant_runs(self, device):
@@ -1035,4 +1083,7 @@ class TestInternalStepsFullBatch:
         trainer = _make_regression_trainer(device)
         trainer._z_step(batch_indices=None, val=False)
         # z_train and u_train should have changed from zero initialisation
-        assert trainer.z_train.abs().sum().item() > 0 or trainer.u_train.abs().sum().item() > 0
+        assert (
+            trainer.z_train.abs().sum().item() > 0
+            or trainer.u_train.abs().sum().item() > 0
+        )

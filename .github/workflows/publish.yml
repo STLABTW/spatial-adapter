@@ -12,11 +12,11 @@ on:
         type: string
 
 jobs:
-  # ────────────────────────────────────────────────────────────────────
+
   # Build platform wheels (manylinux + macOS) via cibuildwheel.
   # The C++ extension is compiled per-wheel so `pip install spatial-adapter`
   # ships the .so without any system-level cmake/armadillo install.
-  # ────────────────────────────────────────────────────────────────────
+
   build_wheels:
     name: Build wheels — ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -66,10 +66,9 @@ jobs:
           name: wheels-${{ matrix.os }}
           path: ./wheelhouse/*.whl
 
-  # ────────────────────────────────────────────────────────────────────
   # Build the sdist (source tarball) — needed for PyPI fallback and
   # for users on unsupported platforms to compile from source.
-  # ────────────────────────────────────────────────────────────────────
+
   build_sdist:
     name: Build sdist
     runs-on: ubuntu-latest
@@ -94,9 +93,8 @@ jobs:
           name: sdist
           path: dist/*.tar.gz
 
-  # ────────────────────────────────────────────────────────────────────
   # Publish to PyPI + create a GitHub Release.
-  # ────────────────────────────────────────────────────────────────────
+
   publish:
     name: Publish to PyPI
     needs: [build_wheels, build_sdist]

@@ -10,8 +10,8 @@ from scipy.special import gamma, kv
 from torch.utils.data import DataLoader, Dataset
 
 from spatial_adapter.metrics import rmse_pooled
-from spatial_adapter.models.spatial_basis_learner import SpatialBasisLearner
 from spatial_adapter.models.spatial_adapter import SpatialNeuralAdapter
+from spatial_adapter.models.spatial_basis_learner import SpatialBasisLearner
 from spatial_adapter.models.trend_model import TrendModel
 
 # STDK was relocated out of the spatial_adapter package to
@@ -622,9 +622,7 @@ def build_field_matrix_from_df_and_pred(df, y_pred_flat):
     return y_true_mat, y_pred_mat, locs, uniq_t
 
 
-# ──────────────────────────────────────────────────────────────────────
 # Trial heatmap plotting (tau1/tau2 grid search diagnostics)
-# ──────────────────────────────────────────────────────────────────────
 
 _TRIAL_POINT_SIZE = 50
 _TRIAL_POINT_ALPHA = 0.85
@@ -670,7 +668,11 @@ def plot_trial_maps(
     for c in ("train_rmse", "val_rmse", "smooth_penalty_train"):
         if c in df.columns:
             best_cols.append(c)
-    print(df.loc[[best_idx], [c for c in best_cols if c in df.columns]].to_string(index=False))
+    print(
+        df.loc[[best_idx], [c for c in best_cols if c in df.columns]].to_string(
+            index=False
+        )
+    )
 
     for color_col in color_cols:
         if color_col not in df.columns:
@@ -686,15 +688,22 @@ def plot_trial_maps(
         ):
             fig, ax = plt.subplots(figsize=(7, 6))
             sc = ax.scatter(
-                df[x_col], df[y_col],
+                df[x_col],
+                df[y_col],
                 c=df[color_col],
-                s=_TRIAL_POINT_SIZE, alpha=_TRIAL_POINT_ALPHA,
-                vmin=vmin, vmax=vmax,
+                s=_TRIAL_POINT_SIZE,
+                alpha=_TRIAL_POINT_ALPHA,
+                vmin=vmin,
+                vmax=vmax,
             )
             ax.scatter(
-                df.loc[best_idx, x_col], df.loc[best_idx, y_col],
-                s=180, facecolors="none", edgecolors="red",
-                linewidths=2, label="Best trial",
+                df.loc[best_idx, x_col],
+                df.loc[best_idx, y_col],
+                s=180,
+                facecolors="none",
+                edgecolors="red",
+                linewidths=2,
+                label="Best trial",
             )
             ax.set_xlabel(x_col)
             ax.set_ylabel(y_col)

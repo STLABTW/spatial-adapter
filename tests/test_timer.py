@@ -7,9 +7,8 @@ import pytest
 
 from spatial_adapter.utils.timer import TimerLog
 
-# ── Basic decorator behaviour ────────────────────────────────────────
 
-
+# Basic decorator behaviour
 def test_timer_records_wall_time():
     log = TimerLog()
 
@@ -46,9 +45,7 @@ def test_timer_preserves_function_name():
     assert "my_func" in log.records[0]["function"]
 
 
-# ── Metadata ─────────────────────────────────────────────────────────
-
-
+# Metadata
 def test_metadata_stored_in_record():
     log = TimerLog()
 
@@ -79,9 +76,7 @@ def test_multiple_calls_accumulate():
     assert [r["seed"] for r in log.records] == list(range(5))
 
 
-# ── CSV save ─────────────────────────────────────────────────────────
-
-
+# CSV save
 def test_save_creates_csv(tmp_path):
     csv_path = tmp_path / "timings.csv"
     log = TimerLog(str(csv_path))
@@ -159,9 +154,7 @@ def test_save_without_path_raises():
         log.save()
 
 
-# ── Heterogeneous metadata across records ────────────────────────────
-
-
+# Heterogeneous metadata across records
 def test_save_heterogeneous_metadata(tmp_path):
     csv_path = tmp_path / "hetero.csv"
     log = TimerLog(str(csv_path))
@@ -187,9 +180,7 @@ def test_save_heterogeneous_metadata(tmp_path):
     assert rows[0].get("tau1", "") == ""
 
 
-# ── Summary ──────────────────────────────────────────────────────────
-
-
+# Summary
 def test_summary_prints(capsys):
     log = TimerLog()
 

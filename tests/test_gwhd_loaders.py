@@ -29,10 +29,7 @@ from spatial_adapter.data.gwhd import (  # noqa: E402
     load_gwhd_annotations,
 )
 
-
-# ──────────────────────────────────────────────────────────────────────
 # _parse_bbox_string
-# ──────────────────────────────────────────────────────────────────────
 
 
 class TestParseBboxString:
@@ -77,9 +74,7 @@ class TestParseBboxString:
         assert out == []
 
 
-# ──────────────────────────────────────────────────────────────────────
 # _bboxes_to_patch_labels
-# ──────────────────────────────────────────────────────────────────────
 
 
 class TestBboxesToPatchLabels:
@@ -105,9 +100,7 @@ class TestBboxesToPatchLabels:
         assert labels.sum() == GRID_H * GRID_W  # every cell set
 
 
-# ──────────────────────────────────────────────────────────────────────
 # get_patch_locations
-# ──────────────────────────────────────────────────────────────────────
 
 
 class TestGetPatchLocations:
@@ -124,9 +117,7 @@ class TestGetPatchLocations:
         np.testing.assert_allclose(locs[-1], [1.0, 1.0])
 
 
-# ──────────────────────────────────────────────────────────────────────
 # _extract_patches
-# ──────────────────────────────────────────────────────────────────────
 
 
 class TestExtractPatches:
@@ -141,9 +132,7 @@ class TestExtractPatches:
         assert patches.shape[1] == 3
 
 
-# ──────────────────────────────────────────────────────────────────────
 # load_gwhd_annotations
-# ──────────────────────────────────────────────────────────────────────
 
 
 class TestLoadGwhdAnnotations:
@@ -151,9 +140,7 @@ class TestLoadGwhdAnnotations:
         csv = tmp_path / "ann.csv"
         # bbox cells are quoted because they contain commas
         csv.write_text(
-            'image_id,bbox\n'
-            'img1.jpg,"[0, 0, 10, 10]"\n'
-            'img2,"[20, 20, 5, 5]"\n'
+            "image_id,bbox\n" 'img1.jpg,"[0, 0, 10, 10]"\n' 'img2,"[20, 20, 5, 5]"\n'
         )
         df = load_gwhd_annotations(str(csv))
         assert list(df.columns) >= ["image_id", "bbox"]
@@ -175,18 +162,14 @@ class TestLoadGwhdAnnotations:
             load_gwhd_annotations(str(csv))
 
 
-# ──────────────────────────────────────────────────────────────────────
 # build_patch_labels
-# ──────────────────────────────────────────────────────────────────────
 
 
 class TestBuildPatchLabels:
     def test_one_row_per_image(self, tmp_path):
         import pandas as pd
 
-        df = pd.DataFrame(
-            {"image_id": ["a", "b"], "bbox": ["0 0 64 64", ""]}
-        )
+        df = pd.DataFrame({"image_id": ["a", "b"], "bbox": ["0 0 64 64", ""]})
         ids, labels = build_patch_labels(df)
         assert ids == ["a", "b"]
         assert labels.shape == (2, GRID_H * GRID_W)
@@ -205,9 +188,7 @@ class TestBuildPatchLabels:
         assert labels[0].sum() >= 2
 
 
-# ──────────────────────────────────────────────────────────────────────
 # build_backbone — unknown backbone branch
-# ──────────────────────────────────────────────────────────────────────
 
 
 class TestBuildBackbone:
@@ -216,9 +197,7 @@ class TestBuildBackbone:
             build_backbone("not_a_real_backbone", device=torch.device("cpu"))
 
 
-# ──────────────────────────────────────────────────────────────────────
 # _build_splits — direct call (no image/backbone needed)
-# ──────────────────────────────────────────────────────────────────────
 
 
 class TestBuildSplits:
@@ -246,9 +225,7 @@ class TestBuildSplits:
         assert y.shape == (4, N)
 
 
-# ──────────────────────────────────────────────────────────────────────
 # extract_features_for_dataset — with a tiny CPU backbone + temp jpg
-# ──────────────────────────────────────────────────────────────────────
 
 
 class _TinyBackbone(torch.nn.Module):
@@ -299,9 +276,7 @@ class TestExtractFeaturesForDataset:
         """When .jpg missing, the code falls back to .png."""
         device = torch.device("cpu")
         backbone = _TinyBackbone().to(device)
-        Image.new("RGB", (1024, 1024), color=(200, 0, 0)).save(
-            tmp_path / "imgA.png"
-        )
+        Image.new("RGB", (1024, 1024), color=(200, 0, 0)).save(tmp_path / "imgA.png")
 
         features = extract_features_for_dataset(
             image_dir=str(tmp_path),
@@ -314,9 +289,7 @@ class TestExtractFeaturesForDataset:
         assert features.shape == (1, GRID_H * GRID_W, 3)
 
 
-# ──────────────────────────────────────────────────────────────────────
 # get_gwhd_dataloader_and_val — cache-hit path (skips backbone load)
-# ──────────────────────────────────────────────────────────────────────
 
 
 class TestGetGwhdDataloaderCacheHit:
@@ -331,22 +304,25 @@ class TestGetGwhdDataloaderCacheHit:
         cache_dir = tmp_path / "cache"
         cache_dir.mkdir()
         cache_path = cache_dir / "gwhd_resnet152.pt"
-        torch.save(
-            {"features": features, "labels": labels, "locs": locs}, cache_path
-        )
+        torch.save({"features": features, "labels": labels, "locs": locs}, cache_path)
 
-        loader, val_cont, val_y, test_cont, test_y, out_locs = (
-            get_gwhd_dataloader_and_val(
-                csv_path="/nonexistent.csv",  # must not be read under cache hit
-                image_dir="/nonexistent",
-                backbone_name="resnet152",
-                device=torch.device("cpu"),
-                train_ratio=0.6,
-                val_ratio=0.2,
-                batch_size=4,
-                seed=0,
-                cache_dir=str(cache_dir),
-            )
+        (
+            loader,
+            val_cont,
+            val_y,
+            test_cont,
+            test_y,
+            out_locs,
+        ) = get_gwhd_dataloader_and_val(
+            csv_path="/nonexistent.csv",  # must not be read under cache hit
+            image_dir="/nonexistent",
+            backbone_name="resnet152",
+            device=torch.device("cpu"),
+            train_ratio=0.6,
+            val_ratio=0.2,
+            batch_size=4,
+            seed=0,
+            cache_dir=str(cache_dir),
         )
         # Train window has 6 samples (0.6 × 10)
         n_train = int(T * 0.6)

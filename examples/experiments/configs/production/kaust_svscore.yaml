@@ -1,4 +1,4 @@
-# ─── Table 4: KAUST ablation — SV_score validation criterion ────
+# Table 4: KAUST ablation — SV_score validation criterion
 # Optuna selects (tau1, tau2) by minimizing val semivariogram score
 experiment:
   name: kaust_svscore

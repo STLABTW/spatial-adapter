@@ -19,7 +19,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-# ── Configuration ────────────────────────────────────────────────────
+# Configuration
 DATA_DIR = Path("experiment_report/residual_spectrum_eigenvalues")
 OUTPUT_DIR = Path(".local")
 

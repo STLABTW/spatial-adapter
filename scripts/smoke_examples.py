@@ -13,7 +13,7 @@ Usage:
     conda activate spatial-adapter
     python tools/smoke_examples.py
 """
-from __future__ import annotations
+
 
 import ast
 import importlib.util
@@ -81,7 +81,9 @@ def _run_notebook(nb: Path) -> str | None:
     return None
 
 
-def _run(label: str, items: list[Path], work: Callable[[Path], str | None]) -> tuple[int, int, int]:
+def _run(
+    label: str, items: list[Path], work: Callable[[Path], str | None]
+) -> tuple[int, int, int]:
     print(f"\n=== {label} ({len(items)} file{'s' if len(items) != 1 else ''}) ===")
     passed = skipped = failed = 0
     for p in items:
@@ -108,12 +110,16 @@ def main() -> int:
     _ensure_repo_on_syspath()
     py_files, nb_files = _collect()
 
-    p1, s1, f1 = _run("Python scripts", py_files, lambda p: (_import_script(p), None)[1])
+    p1, s1, f1 = _run(
+        "Python scripts", py_files, lambda p: (_import_script(p), None)[1]
+    )
     p2, s2, f2 = _run("Notebook imports", nb_files, _run_notebook)
 
     total = p1 + s1 + f1 + p2 + s2 + f2
     print("\n" + "=" * 60)
-    print(f"SUMMARY: {p1 + p2} passed, {s1 + s2} skipped, {f1 + f2} failed  ({total} total)")
+    print(
+        f"SUMMARY: {p1 + p2} passed, {s1 + s2} skipped, {f1 + f2} failed  ({total} total)"
+    )
     print("=" * 60)
     return 1 if (f1 + f2) else 0
 

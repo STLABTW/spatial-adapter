@@ -56,7 +56,6 @@ mpl.rcParams.update(
 
 from spatial_adapter.data.generators import generate_time_synthetic_data
 from spatial_adapter.data.preprocessing import prepare_all_with_scaling
-from spatial_adapter.models.spatial_basis_learner import SpatialBasisLearner
 from spatial_adapter.models.spatial_adapter import (
     ADMMConfig,
     BasisConfig,
@@ -64,10 +63,11 @@ from spatial_adapter.models.spatial_adapter import (
     SpatialNeuralAdapterConfig,
     TrainingConfig,
 )
+from spatial_adapter.models.spatial_basis_learner import SpatialBasisLearner
 from spatial_adapter.models.trend_model import TrendModel
 from spatial_adapter.utils.experiment_helpers import compute_ols_coefficients
 
-# ── Configuration ────────────────────────────────────────────────────
+# Configuration
 SEEDS = list(range(42, 52))  # 10 seeds — shaded band ± 1 std across seeds
 REFERENCE_SEED = 42  # seed used for the covariance/basis heatmaps
 N_LOCATIONS = 512
@@ -480,7 +480,7 @@ def main():
     C_ALIGN = "#0072B2"
     C_COVF = "#E69F00"
 
-    # ── (a) Regularization path ──────────────────────────────────
+    # (a) Regularization path
     # Median [25–75% IQR] over n seeds. X-axis truncated to [1e-3, 10]:
     # beyond λ=10 the basis has fully collapsed and |⟨φ̂, φ⟩| behaves like
     # |⟨random unit vector, φ⟩| ~ 1/√N — uninformative noise rather than
@@ -564,7 +564,7 @@ def main():
     plt.close(fig)
     print(f"Saved: {path_a}")
 
-    # ── (b) Covariance evolution ─────────────────────────────────
+    # (b) Covariance evolution
     # Three representative λ (under / optimal / over) + ground truth.
     # Shared colormap anchored on the ground-truth off-diagonal magnitude
     # so under-regularized panels saturate — that saturation *is* the
@@ -615,7 +615,7 @@ def main():
     plt.close(fig)
     print(f"Saved: {path_b}")
 
-    # ── Appendix: basis evolution ────────────────────────────────
+    # Appendix: basis evolution
     fig, axes = plt.subplots(
         1, n_panels, figsize=(5.8, 1.6), constrained_layout=True, sharey=True
     )

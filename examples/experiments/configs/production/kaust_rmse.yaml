@@ -1,4 +1,4 @@
-# ─── Table 4: KAUST ablation — RMSE validation criterion ────────
+# Table 4: KAUST ablation — RMSE validation criterion
 # Paper: "Ablation on validation criterion (KAUST data, 10/10/80 split)"
 # Optuna selects (tau1, tau2) by minimizing val RMSE
 # Metrics: Test RMSE, Test CovFrob, Test SV_score

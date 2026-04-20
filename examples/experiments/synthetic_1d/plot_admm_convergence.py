@@ -12,7 +12,6 @@ Output:
     .local/admm_convergence_synthetic.pdf
 """
 
-
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -25,7 +24,6 @@ from torch.utils.data import DataLoader
 
 from spatial_adapter.data.generators import generate_time_synthetic_data
 from spatial_adapter.data.preprocessing import prepare_all_with_scaling
-from spatial_adapter.models.spatial_basis_learner import SpatialBasisLearner
 from spatial_adapter.models.spatial_adapter import (
     ADMMConfig,
     BasisConfig,
@@ -33,10 +31,11 @@ from spatial_adapter.models.spatial_adapter import (
     SpatialNeuralAdapterConfig,
     TrainingConfig,
 )
+from spatial_adapter.models.spatial_basis_learner import SpatialBasisLearner
 from spatial_adapter.models.trend_model import TrendModel
 from spatial_adapter.utils import compute_ols_coefficients
 
-# ── Configuration ────────────────────────────────────────────────────
+# Configuration
 SEED = 42
 N_LOCATIONS = 512
 N_TIME_STEPS = 1024

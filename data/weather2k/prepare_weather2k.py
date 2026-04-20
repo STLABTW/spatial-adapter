@@ -25,20 +25,27 @@ import numpy as np
 def main():
     parser = argparse.ArgumentParser(description="Prepare Weather2K subset")
     parser.add_argument(
-        "--input", type=Path, required=True,
+        "--input",
+        type=Path,
+        required=True,
         help="Path to the full weather2k.npy",
     )
     parser.add_argument(
-        "--output", type=Path,
+        "--output",
+        type=Path,
         default=Path("data/weather2k/weather2k_subset.npz"),
         help="Output path for the subset (default: data/weather2k/weather2k_subset.npz)",
     )
     parser.add_argument(
-        "--target-var-idx", type=int, default=0,
+        "--target-var-idx",
+        type=int,
+        default=0,
         help="Index of the target variable to extract (default: 0)",
     )
     parser.add_argument(
-        "--t-keep", type=int, default=1000,
+        "--t-keep",
+        type=int,
+        default=1000,
         help="Number of time steps to retain (default: 1000)",
     )
     args = parser.parse_args()
@@ -63,14 +70,14 @@ def main():
                 print(f"  {key}: shape={val.shape}, dtype={val.dtype}")
                 # Truncate time dimension if applicable
                 if val.ndim >= 1 and val.shape[0] > args.t_keep:
-                    val = val[:args.t_keep]
+                    val = val[: args.t_keep]
                 subset[key] = val
             else:
                 subset[key] = val
     else:
         print(f"  array: shape={data.shape}, dtype={data.dtype}")
         if data.shape[0] > args.t_keep:
-            data = data[:args.t_keep]
+            data = data[: args.t_keep]
         subset = {"data": data}
 
     args.output.parent.mkdir(parents=True, exist_ok=True)

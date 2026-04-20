@@ -1,4 +1,4 @@
-# ─── Table 5: Weather2K reconstruction — 10/10/80 split ─────────
+# Table 5: Weather2K reconstruction — 10/10/80 split
 # Deliberately under-trained backbone (same as KAUST ablation rationale)
 experiment:
   name: weather2k_10_10_80
