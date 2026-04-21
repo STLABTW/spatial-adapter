@@ -56,7 +56,7 @@ class BasisConfig:
 
 
 @dataclass
-class SpatialNeuralAdapterConfig:
+class SpatialAdapterConfig:
     admm: ADMMConfig = None
     training: TrainingConfig = None
     basis: BasisConfig = None
@@ -78,7 +78,7 @@ class SpatialNeuralAdapterConfig:
         return d
 
     @classmethod
-    def from_dict(cls, d: Dict[str, Any]) -> "SpatialNeuralAdapterConfig":
+    def from_dict(cls, d: Dict[str, Any]) -> "SpatialAdapterConfig":
         admm = ADMMConfig(
             rho=d.get("rho", 5.0),
             dual_momentum=d.get("dual_momentum", 0.2),
@@ -112,7 +112,7 @@ class SpatialNeuralAdapterConfig:
 
 
 # Main ADMM trainer
-class SpatialNeuralAdapter:
+class SpatialAdapter:
     """Three-block mini-batch ADMM: θ-step (trend), Φ-step (basis), Z-step (consensus)."""
 
     def __init__(
@@ -123,7 +123,7 @@ class SpatialNeuralAdapter:
         val_cont: torch.Tensor,
         val_y: torch.Tensor,
         locs: np.ndarray,
-        config: Union[SpatialNeuralAdapterConfig, Dict[str, Any]],
+        config: Union[SpatialAdapterConfig, Dict[str, Any]],
         device: torch.device,
         writer: SummaryWriter,
         tau1: float = 0.0,
@@ -134,7 +134,7 @@ class SpatialNeuralAdapter:
         self.tau1, self.tau2 = tau1, tau2
 
         if isinstance(config, dict):
-            self.config = SpatialNeuralAdapterConfig.from_dict(config)
+            self.config = SpatialAdapterConfig.from_dict(config)
         else:
             self.config = config
 
@@ -564,3 +564,106 @@ class SpatialNeuralAdapter:
         ).T
         self._A = A
         self._eta_last = eta[-1].clone()
+
+    # Tuned one-shot constructor
+
+    @classmethod
+    def fit_tuned(
+        cls,
+        trend: TrendModel,
+        train_loader: DataLoader,
+        *,
+        val_cont: torch.Tensor,
+        val_y: torch.Tensor,
+        locs: np.ndarray,
+        device: torch.device,
+        latent_dim: int,
+        seed: int = 0,
+        n_trials: int = 10,
+        criterion: Literal["auto", "rmse", "accuracy", "auc"] = "auto",
+        config: Optional["SpatialAdapterConfig"] = None,
+        tau_range: Tuple[float, float] = (1e-4, 1e2),
+    ):
+        """Hide the 2D (tau1, tau2) search behind one call.
+
+        Runs a short Optuna sweep (default 10 trials, per-seed) via
+        :class:`AdapterTuner`, then refits at the best (tau1, tau2) and
+        returns the trained adapter together with the chosen weights and
+        the trials dataframe. The underlying ADMM / IRL₁ algorithm is
+        unchanged — this is purely a UX wrapper.
+
+        Parameters
+        ----------
+        trend : TrendModel
+            First-stage predictor; deep-copied per Optuna trial.
+        train_loader, val_cont, val_y, locs, device
+            Standard adapter plumbing.
+        latent_dim : int
+            K — the basis rank for the Φ step.
+        seed : int, default=0
+            Reproducible TPE sampler seed (one seed per Monte-Carlo run).
+        n_trials : int, default=10
+            Optuna budget. Usually enough for RMSE; tighten when the
+            objective is noisier (SNR-dependent, e.g. binary accuracy).
+        criterion : {"auto", "rmse", "accuracy", "auc"}, default="auto"
+            "auto" -> "accuracy" for binary tasks, "rmse" for regression.
+        config : SpatialAdapterConfig, optional
+            Shared ADMM/training/basis config. Defaults to
+            ``SpatialAdapterConfig()``.
+        tau_range : (float, float), default=(1e-4, 1e2)
+            Log-scale bounds for both tau1 and tau2.
+
+        Returns
+        -------
+        FitTunedResult
+            ``result.adapter`` is already trained at the best weights;
+            ``result.tau1`` / ``result.tau2`` / ``result.trials`` expose
+            the search outcome.
+        """
+        from spatial_adapter.tuning import AdapterTuner, FitTunedResult
+
+        if config is None:
+            config = SpatialAdapterConfig()
+
+        if criterion == "auto":
+            criterion = "accuracy" if config.task == "binary" else "rmse"
+        direction = "maximize" if criterion in ("accuracy", "auc") else "minimize"
+
+        task = config.task
+
+        def _evaluate(trainer) -> Dict[str, float]:
+            primary, f1, auc = trainer._validate()
+            if task == "binary":
+                return {"accuracy": primary, "f1": f1, "auc": auc}
+            return {"rmse": primary}
+
+        n_locations = int(val_y.shape[-1])
+
+        tuner = AdapterTuner(
+            trend_template=trend,
+            train_loader=train_loader,
+            val_cont=val_cont,
+            val_y=val_y,
+            locs=locs,
+            n_locations=n_locations,
+            latent_dim=latent_dim,
+            adapter_config=config,
+            evaluate_fn=_evaluate,
+            tau_range=tau_range,
+            n_trials=n_trials,
+            objective_key=criterion,
+            direction=direction,
+            device=device,
+        )
+        best = tuner.run_optuna(seed=seed)
+
+        # Refit once at the best (tau1, tau2); AdapterTuner.fit_one does
+        # pretrain + init_basis + run internally so we don't duplicate logic.
+        trained, _ = tuner.fit_one(best["tau1"], best["tau2"], warm_start=False)
+
+        return FitTunedResult(
+            adapter=trained,
+            tau1=float(best["tau1"]),
+            tau2=float(best["tau2"]),
+            trials=tuner.study.trials_dataframe(),
+        )

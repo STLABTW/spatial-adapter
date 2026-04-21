@@ -19,7 +19,7 @@ from examples.baselines.timesplit.experiment_core import (
 )
 from examples.experiments.base import BaseExperiment, DataSplit
 from spatial_adapter.metrics import compute_metrics, cov_frob_observed
-from spatial_adapter.models.spatial_adapter import SpatialNeuralAdapter
+from spatial_adapter.models.spatial_adapter import SpatialAdapter
 
 
 class KAUSTExperiment(BaseExperiment):
@@ -251,7 +251,7 @@ class KAUSTExperiment(BaseExperiment):
 
     def evaluate(
         self,
-        trainer: SpatialNeuralAdapter,
+        trainer: SpatialAdapter,
         data: DataSplit,
         model_name: str,
     ) -> dict:

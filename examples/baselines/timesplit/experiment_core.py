@@ -10,7 +10,7 @@ from scipy.special import gamma, kv
 from torch.utils.data import DataLoader, Dataset
 
 from spatial_adapter.metrics import rmse_pooled
-from spatial_adapter.models.spatial_adapter import SpatialNeuralAdapter
+from spatial_adapter.models.spatial_adapter import SpatialAdapter
 from spatial_adapter.models.spatial_basis_learner import SpatialBasisLearner
 from spatial_adapter.models.trend_model import TrendModel
 
@@ -483,7 +483,7 @@ def fit_adapter_reconstruct_all_times(
     residual_true_tensor_all,
     writer=None,
 ):
-    trainer = SpatialNeuralAdapter(
+    trainer = SpatialAdapter(
         trend=trend,
         basis=basis,
         train_loader=train_loader,

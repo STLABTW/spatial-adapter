@@ -20,7 +20,7 @@ optuna.logging.set_verbosity(optuna.logging.WARNING)
 
 def _load_dependencies():
     global spatial_utils
-    global ADMMConfig, BasisConfig, SpatialNeuralAdapterConfig, TrainingConfig
+    global ADMMConfig, BasisConfig, SpatialAdapterConfig, TrainingConfig
     global create_model
     global DictDataset, build_contiguous_time_splits, build_field_matrix_from_df_and_pred
     global build_fixed_location_subset, build_standard_bin_edges, build_stdk_model_config
@@ -53,7 +53,7 @@ def _load_dependencies():
     from spatial_adapter.models.spatial_adapter import (
         ADMMConfig,
         BasisConfig,
-        SpatialNeuralAdapterConfig,
+        SpatialAdapterConfig,
         TrainingConfig,
     )
 
@@ -103,7 +103,7 @@ def parse_args():
 
 
 def build_adapter_config(gna_batch_size):
-    return SpatialNeuralAdapterConfig(
+    return SpatialAdapterConfig(
         admm=ADMMConfig(
             rho=1.0, dual_momentum=0.2, max_iters=3000, min_outer=20, tol=1e-4
         ),

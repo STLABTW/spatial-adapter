@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from spatial_adapter.models.spatial_adapter import (
     ADMMConfig,
     BasisConfig,
-    SpatialNeuralAdapterConfig,
+    SpatialAdapterConfig,
     TrainingConfig,
 )
 from spatial_adapter.tuning import AdapterTuner
@@ -56,8 +56,8 @@ def _make_synthetic_regression(T=40, N=16, p=8, seed=0):
     }
 
 
-def _make_config(max_iters=4, pretrain_epochs=1) -> SpatialNeuralAdapterConfig:
-    return SpatialNeuralAdapterConfig(
+def _make_config(max_iters=4, pretrain_epochs=1) -> SpatialAdapterConfig:
+    return SpatialAdapterConfig(
         admm=ADMMConfig(
             rho=5.0, dual_momentum=0.2, max_iters=max_iters, min_outer=1, tol=1e-4
         ),
@@ -164,17 +164,17 @@ class TestAdapterTuner:
         # Patch pretrain_trend via monkey-patching on the instance class
         import spatial_adapter.models.spatial_adapter as mod
 
-        orig = mod.SpatialNeuralAdapter.pretrain_trend
+        orig = mod.SpatialAdapter.pretrain_trend
 
         def _counted(self, *a, **kw):
             calls["n"] += 1
             return orig(self, *a, **kw)
 
-        mod.SpatialNeuralAdapter.pretrain_trend = _counted
+        mod.SpatialAdapter.pretrain_trend = _counted
         try:
             tuner.fit_one(tau1=0.1, tau2=0.1)
         finally:
-            mod.SpatialNeuralAdapter.pretrain_trend = orig
+            mod.SpatialAdapter.pretrain_trend = orig
 
         assert (
             calls["n"] == 0

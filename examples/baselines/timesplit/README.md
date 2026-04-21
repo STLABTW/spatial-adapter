@@ -24,7 +24,7 @@ Imports from the Spatial Adapter library (legitimate — this is the
 experiment scaffolding that runs our method):
 
 - `spatial_adapter.models.spatial_basis_learner.SpatialBasisLearner`
-- `spatial_adapter.models.spatial_adapter.SpatialNeuralAdapter`
+- `spatial_adapter.models.spatial_adapter.SpatialAdapter`
 - `spatial_adapter.models.trend_model.TrendModel`
 
 Imports from the STDK baseline (rewritten to a relative sibling import):

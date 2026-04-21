@@ -18,18 +18,15 @@ import torch.nn as nn
 from optuna.pruners import MedianPruner
 from torch.utils.data import DataLoader
 
-from spatial_adapter.models.spatial_adapter import (
-    SpatialNeuralAdapter,
-    SpatialNeuralAdapterConfig,
-)
+from spatial_adapter.models.spatial_adapter import SpatialAdapter, SpatialAdapterConfig
 from spatial_adapter.models.spatial_basis_learner import SpatialBasisLearner
 from spatial_adapter.tuning.model_cache import ModelCache
 
-EvaluateFn = Callable[[SpatialNeuralAdapter], Dict[str, float]]
+EvaluateFn = Callable[[SpatialAdapter], Dict[str, float]]
 
 
 class AdapterTuner:
-    """Tune (tau1, tau2) for SpatialNeuralAdapter via Optuna with warm-start cache.
+    """Tune (tau1, tau2) for SpatialAdapter via Optuna with warm-start cache.
 
     Parameters
     ----------
@@ -37,10 +34,10 @@ class AdapterTuner:
         Frozen trend model to deep-copy for each trial. The template itself is
         never mutated.
     train_loader, val_cont, val_y, locs, n_locations, latent_dim :
-        Data plumbing forwarded to :class:`SpatialNeuralAdapter`.
-    adapter_config : SpatialNeuralAdapterConfig
+        Data plumbing forwarded to :class:`SpatialAdapter`.
+    adapter_config : SpatialAdapterConfig
         ADMM / training / basis configuration, shared across trials.
-    evaluate_fn : Callable[[SpatialNeuralAdapter], Dict[str, float]]
+    evaluate_fn : Callable[[SpatialAdapter], Dict[str, float]]
         Called after ``trainer.run()`` to produce the metrics dict. The
         ``objective_key`` must appear in the returned dict.
     tau_range : (float, float), default=(1e-4, 1e2)
@@ -67,7 +64,7 @@ class AdapterTuner:
         locs: np.ndarray,
         n_locations: int,
         latent_dim: int,
-        adapter_config: SpatialNeuralAdapterConfig,
+        adapter_config: SpatialAdapterConfig,
         *,
         evaluate_fn: EvaluateFn,
         tau_range: Tuple[float, float] = (1e-4, 1e2),
@@ -105,12 +102,12 @@ class AdapterTuner:
         tau2: float,
         *,
         warm_start: bool = False,
-    ) -> Tuple[SpatialNeuralAdapter, Dict[str, float]]:
+    ) -> Tuple[SpatialAdapter, Dict[str, float]]:
         """Train one adapter configuration.
 
         Returns
         -------
-        trainer : SpatialNeuralAdapter
+        trainer : SpatialAdapter
             The trained trainer. Caller is responsible for freeing it.
         metrics : dict
             ``evaluate_fn`` output plus ``tau1``, ``tau2``, ``elapsed_s``.
@@ -123,7 +120,7 @@ class AdapterTuner:
             self.cache.load_nearest(trend, basis, tau1, tau2)
             warm_started = True
 
-        trainer = SpatialNeuralAdapter(
+        trainer = SpatialAdapter(
             trend,
             basis,
             self.train_loader,
@@ -200,6 +197,9 @@ class AdapterTuner:
         )
         optuna.logging.set_verbosity(optuna.logging.WARNING)
         study.optimize(objective, n_trials=self.n_trials)
+
+        # Expose the study for post-hoc inspection (e.g. trials_dataframe).
+        self.study = study
 
         return best_metrics
 

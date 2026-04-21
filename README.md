@@ -1,8 +1,6 @@
 # Spatial Adapter
 
-A post-hoc cascade adapter that extracts explicit low-rank spatial
-representations from the residuals of any frozen first-stage predictor,
-yielding closed-form covariance estimation and uncertainty quantification.
+A post-hoc cascade adapter that extracts explicit low-rank spatial representations from the residuals of any frozen first-stage predictor, yielding closed-form covariance estimation and uncertainty quantification.
 
 
 ## Installation
@@ -29,7 +27,7 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
 ```python
 import torch
 from spatial_adapter.models.spatial_adapter import (
-    SpatialNeuralAdapter, SpatialNeuralAdapterConfig,
+    SpatialAdapter, SpatialAdapterConfig,
 )
 from spatial_adapter.models.spatial_basis_learner import SpatialBasisLearner
 from spatial_adapter.models.trend_model import TrendModel
@@ -39,9 +37,9 @@ trend = TrendModel(num_continuous_features=5, hidden_layer_sizes=[], n_locations
 
 # Stage 2: attach spatial adapter
 basis = SpatialBasisLearner(num_locations=100, latent_dim=10)
-config = SpatialNeuralAdapterConfig()
+config = SpatialAdapterConfig()
 
-adapter = SpatialNeuralAdapter(
+adapter = SpatialAdapter(
     trend, basis, train_loader,
     val_cont=val_X, val_y=val_Y,
     locs=station_coords,

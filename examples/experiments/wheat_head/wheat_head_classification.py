@@ -37,13 +37,13 @@ from spatial_adapter.data.gwhd import get_gwhd_dataloader_and_val
 from spatial_adapter.metrics import compute_binary_metrics
 from spatial_adapter.models import (
     ClassificationWrapper,
+    SpatialAdapter,
     SpatialBasisLearner,
-    SpatialNeuralAdapter,
 )
 from spatial_adapter.models.spatial_adapter import (
     ADMMConfig,
     BasisConfig,
-    SpatialNeuralAdapterConfig,
+    SpatialAdapterConfig,
     TrainingConfig,
 )
 
@@ -97,10 +97,8 @@ class TwoStageTrend(nn.Module):
 
 
 # Helpers
-def _make_config(
-    task: str = "binary", max_iters: int = 200
-) -> SpatialNeuralAdapterConfig:
-    return SpatialNeuralAdapterConfig(
+def _make_config(task: str = "binary", max_iters: int = 200) -> SpatialAdapterConfig:
+    return SpatialAdapterConfig(
         admm=ADMMConfig(
             rho=5.0, dual_momentum=0.2, max_iters=max_iters, min_outer=80, tol=1e-4
         ),
@@ -121,7 +119,7 @@ def _build_trend_model(feature_dim: int, device: torch.device) -> Classification
 
 @torch.no_grad()
 def _evaluate(
-    trainer: SpatialNeuralAdapter,
+    trainer: SpatialAdapter,
     cont: torch.Tensor,
     y: torch.Tensor,
     device: torch.device,
@@ -159,7 +157,7 @@ def _evaluate_backbone_only(
 
 @torch.no_grad()
 def _evaluate_uq(
-    trainer: SpatialNeuralAdapter,
+    trainer: SpatialAdapter,
     cont: torch.Tensor,
     y: torch.Tensor,
     device: torch.device,
@@ -264,7 +262,7 @@ def run_single_seed(
     # Per the paper: pretrain backbone + head, then freeze for Stage 2.
     trend_stage1 = _build_trend_model(feature_dim, device)
     config_s1 = _make_config(max_iters=0)
-    trainer_s1 = SpatialNeuralAdapter(
+    trainer_s1 = SpatialAdapter(
         trend=trend_stage1,
         basis=SpatialBasisLearner(N_LOCATIONS, LATENT_DIM).to(device),
         train_loader=train_loader,
@@ -297,7 +295,7 @@ def run_single_seed(
         trend = TwoStageTrend(frozen_head, feature_dim).to(device)
         basis = SpatialBasisLearner(N_LOCATIONS, LATENT_DIM).to(device)
         config = _make_config(max_iters=admm_iters)
-        trainer = SpatialNeuralAdapter(
+        trainer = SpatialAdapter(
             trend=trend,
             basis=basis,
             train_loader=train_loader,

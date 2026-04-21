@@ -14,7 +14,7 @@ from examples.experiments.base import BaseExperiment, DataSplit, _record
 from spatial_adapter.data.gwhd import get_gwhd_dataloader_and_val
 from spatial_adapter.metrics import compute_binary_metrics, expected_calibration_error
 from spatial_adapter.models.classification_wrapper import ClassificationWrapper
-from spatial_adapter.models.spatial_adapter import SpatialNeuralAdapter
+from spatial_adapter.models.spatial_adapter import SpatialAdapter
 from spatial_adapter.models.spatial_basis_learner import SpatialBasisLearner
 
 
@@ -178,7 +178,7 @@ class WheatHeadExperiment(BaseExperiment):
         basis_dummy = SpatialBasisLearner(data.n_locations, self.latent_dim).to(
             self.device
         )
-        trainer_s1 = SpatialNeuralAdapter(
+        trainer_s1 = SpatialAdapter(
             head,
             basis_dummy,
             data.train_loader,
@@ -215,7 +215,7 @@ class WheatHeadExperiment(BaseExperiment):
 
     def evaluate(
         self,
-        trainer: SpatialNeuralAdapter,
+        trainer: SpatialAdapter,
         data: DataSplit,
         model_name: str,
     ) -> dict:

@@ -40,7 +40,7 @@ from examples.baselines.timesplit.experiment_core import (
 from spatial_adapter.models.spatial_adapter import (
     ADMMConfig,
     BasisConfig,
-    SpatialNeuralAdapterConfig,
+    SpatialAdapterConfig,
     TrainingConfig,
 )
 
@@ -109,7 +109,7 @@ print("device =", device, flush=True)
 
 seed_everything(SEED)
 
-config = SpatialNeuralAdapterConfig(
+config = SpatialAdapterConfig(
     admm=ADMMConfig(
         rho=1.0,
         dual_momentum=0.2,

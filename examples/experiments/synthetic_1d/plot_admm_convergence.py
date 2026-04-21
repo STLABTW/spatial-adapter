@@ -27,8 +27,8 @@ from spatial_adapter.data.preprocessing import prepare_all_with_scaling
 from spatial_adapter.models.spatial_adapter import (
     ADMMConfig,
     BasisConfig,
-    SpatialNeuralAdapter,
-    SpatialNeuralAdapterConfig,
+    SpatialAdapter,
+    SpatialAdapterConfig,
     TrainingConfig,
 )
 from spatial_adapter.models.spatial_basis_learner import SpatialBasisLearner
@@ -58,9 +58,9 @@ class ResidualLogger:
         self.dual = []
 
 
-def _monkey_patch_run(adapter: SpatialNeuralAdapter, logger: ResidualLogger) -> float:
+def _monkey_patch_run(adapter: SpatialAdapter, logger: ResidualLogger) -> float:
     """
-    Run the ADMM loop with residual logging, mirroring SpatialNeuralAdapter.run()
+    Run the ADMM loop with residual logging, mirroring SpatialAdapter.run()
     but appending primal/dual norms to *logger* at each iteration.
     """
     from tqdm import trange
@@ -162,7 +162,7 @@ def run_and_log(tau1: float, tau2: float, label: str) -> ResidualLogger:
     ).to(DEVICE)
     basis = SpatialBasisLearner(N_LOCATIONS, LATENT_DIM).to(DEVICE)
 
-    config = SpatialNeuralAdapterConfig(
+    config = SpatialAdapterConfig(
         admm=ADMMConfig(
             rho=1.0, dual_momentum=0.2, max_iters=3000, min_outer=20, tol=1e-4
         ),
@@ -170,7 +170,7 @@ def run_and_log(tau1: float, tau2: float, label: str) -> ResidualLogger:
         basis=BasisConfig(phi_every=5, phi_freeze=200),
     )
 
-    adapter = SpatialNeuralAdapter(
+    adapter = SpatialAdapter(
         trend,
         basis,
         train_loader,

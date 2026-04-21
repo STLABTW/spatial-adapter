@@ -5,17 +5,14 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from spatial_adapter.data import get_synthetic_binary_dataloader_and_val
 from spatial_adapter.models.classification_wrapper import ClassificationWrapper
-from spatial_adapter.models.spatial_adapter import (
-    SpatialNeuralAdapter,
-    SpatialNeuralAdapterConfig,
-)
+from spatial_adapter.models.spatial_adapter import SpatialAdapter, SpatialAdapterConfig
 from spatial_adapter.models.spatial_basis_learner import SpatialBasisLearner
 from spatial_adapter.models.trend_model import TrendModel
 
 
-class TestSpatialNeuralAdapter:
+class TestSpatialAdapter:
     def test_trainer_initialization(self, sample_data, device):
-        """Test SpatialNeuralAdapter initialization."""
+        """Test SpatialAdapter initialization."""
         p_dim = sample_data["cont_features"].shape[-1]
         n_locations = sample_data["locations"].shape[0]
 
@@ -77,7 +74,7 @@ class TestSpatialNeuralAdapter:
         }
 
         # Create trainer
-        trainer = SpatialNeuralAdapter(
+        trainer = SpatialAdapter(
             trend=trend,
             basis=basis,
             train_loader=train_loader,
@@ -160,7 +157,7 @@ class TestSpatialNeuralAdapter:
         }
 
         # Create trainer
-        trainer = SpatialNeuralAdapter(
+        trainer = SpatialAdapter(
             trend=trend,
             basis=basis,
             train_loader=train_loader,
@@ -243,7 +240,7 @@ class TestSpatialNeuralAdapter:
         }
 
         # Create trainer
-        trainer = SpatialNeuralAdapter(
+        trainer = SpatialAdapter(
             trend=trend,
             basis=basis,
             train_loader=train_loader,
@@ -268,39 +265,38 @@ class TestSpatialNeuralAdapter:
     # ---- L1: pluggable task (regression / binary) ----
 
     def test_config_task_default(self):
-        """SpatialNeuralAdapterConfig defaults to task='regression'."""
-        config = SpatialNeuralAdapterConfig()
+        """SpatialAdapterConfig defaults to task='regression'."""
+        config = SpatialAdapterConfig()
         assert config.task == "regression"
 
     def test_config_from_dict_task_binary(self):
         """from_dict accepts task='binary' and sets config.task."""
-        config = SpatialNeuralAdapterConfig.from_dict({"task": "binary"})
+        config = SpatialAdapterConfig.from_dict({"task": "binary"})
         assert config.task == "binary"
 
     def test_config_from_dict_task_regression(self):
         """from_dict with task='regression' or no task yields regression."""
         assert (
-            SpatialNeuralAdapterConfig.from_dict({"task": "regression"}).task
-            == "regression"
+            SpatialAdapterConfig.from_dict({"task": "regression"}).task == "regression"
         )
-        assert SpatialNeuralAdapterConfig.from_dict({}).task == "regression"
+        assert SpatialAdapterConfig.from_dict({}).task == "regression"
 
     def test_config_to_dict_roundtrip_task(self):
         """to_dict and from_dict roundtrip preserves task."""
-        config = SpatialNeuralAdapterConfig()
+        config = SpatialAdapterConfig()
         config.task = "binary"
         d = config.to_dict()
         assert d["task"] == "binary"
-        restored = SpatialNeuralAdapterConfig.from_dict(d)
+        restored = SpatialAdapterConfig.from_dict(d)
         assert restored.task == "binary"
 
     def test_config_from_dict_invalid_task_raises(self):
         """from_dict with invalid task raises ValueError."""
         with pytest.raises(ValueError, match="task must be 'regression' or 'binary'"):
-            SpatialNeuralAdapterConfig.from_dict({"task": "classification"})
+            SpatialAdapterConfig.from_dict({"task": "classification"})
 
     def test_adapter_with_task_binary_initializes(self, sample_data, device):
-        """SpatialNeuralAdapter with task=binary initializes and exposes task."""
+        """SpatialAdapter with task=binary initializes and exposes task."""
         p_dim = sample_data["cont_features"].shape[-1]
         n_locations = sample_data["locations"].shape[0]
         trend = TrendModel(
@@ -347,7 +343,7 @@ class TestSpatialNeuralAdapter:
             "pretrain_epochs": 2,
             "task": "binary",
         }
-        trainer = SpatialNeuralAdapter(
+        trainer = SpatialAdapter(
             trend=trend,
             basis=basis,
             train_loader=train_loader,
@@ -364,7 +360,7 @@ class TestSpatialNeuralAdapter:
         assert trainer._is_binary is True
 
     def test_adapter_with_task_binary_pretrain_runs(self, sample_data, device):
-        """SpatialNeuralAdapter with task=binary can run pretrain_trend without error."""
+        """SpatialAdapter with task=binary can run pretrain_trend without error."""
         p_dim = sample_data["cont_features"].shape[-1]
         n_locations = sample_data["locations"].shape[0]
         trend = TrendModel(
@@ -411,7 +407,7 @@ class TestSpatialNeuralAdapter:
             "pretrain_epochs": 2,
             "task": "binary",
         }
-        trainer = SpatialNeuralAdapter(
+        trainer = SpatialAdapter(
             trend=trend,
             basis=basis,
             train_loader=train_loader,
@@ -483,7 +479,7 @@ class TestSpatialNeuralAdapter:
             "pretrain_epochs": 2,
             "task": "binary",
         }
-        trainer = SpatialNeuralAdapter(
+        trainer = SpatialAdapter(
             trend=trend,
             basis=basis,
             train_loader=train_loader,
@@ -562,7 +558,7 @@ class TestSpatialNeuralAdapter:
             "pretrain_epochs": 0,
             "task": "binary",
         }
-        trainer = SpatialNeuralAdapter(
+        trainer = SpatialAdapter(
             trend=trend,
             basis=basis,
             train_loader=train_loader,
@@ -636,7 +632,7 @@ class TestSpatialNeuralAdapter:
             "pretrain_epochs": 0,
             "task": "binary",
         }
-        trainer = SpatialNeuralAdapter(
+        trainer = SpatialAdapter(
             trend=trend,
             basis=basis,
             train_loader=train_loader,
@@ -709,7 +705,7 @@ class TestSpatialNeuralAdapter:
             "pretrain_epochs": 0,
             "task": "binary",
         }
-        trainer = SpatialNeuralAdapter(
+        trainer = SpatialAdapter(
             trend=trend,
             basis=basis,
             train_loader=train_loader,
@@ -767,7 +763,7 @@ class TestSpatialNeuralAdapter:
             "pretrain_epochs": 1,
             "task": "binary",
         }
-        trainer = SpatialNeuralAdapter(
+        trainer = SpatialAdapter(
             trend=trend,
             basis=basis,
             train_loader=train_loader,
@@ -833,7 +829,7 @@ class TestSpatialNeuralAdapter:
             "pretrain_epochs": 1,
             "task": "binary",
         }
-        trainer = SpatialNeuralAdapter(
+        trainer = SpatialAdapter(
             trend=trend,
             basis=basis,
             train_loader=train_loader,
@@ -888,7 +884,7 @@ def _make_regression_trainer(device):
         "irl1_tol": 1e-3,
         "pretrain_epochs": 1,
     }
-    return SpatialNeuralAdapter(
+    return SpatialAdapter(
         trend=trend,
         basis=basis,
         train_loader=loader,
@@ -906,7 +902,7 @@ class TestConfigLogging:
         """log_config iterates to_dict() and logs every key/value."""
         import logging
 
-        cfg = SpatialNeuralAdapterConfig()
+        cfg = SpatialAdapterConfig()
         with caplog.at_level(logging.INFO, logger="spatial_adapter"):
             cfg.log_config()
         # Should have emitted one line per config key
@@ -940,7 +936,7 @@ class TestReconstruct:
         _, N, p = cont.shape
         trend = ClassificationWrapper(feature_dim=p, n_locations=N).to(device)
         basis = SpatialBasisLearner(num_locations=N, latent_dim=2).to(device)
-        trainer = SpatialNeuralAdapter(
+        trainer = SpatialAdapter(
             trend=trend,
             basis=basis,
             train_loader=train_loader,
@@ -1004,7 +1000,7 @@ class TestPhiStepBceVariants:
         _, N, p = cont.shape
         trend = ClassificationWrapper(feature_dim=p, n_locations=N).to(device)
         basis = SpatialBasisLearner(num_locations=N, latent_dim=2).to(device)
-        return SpatialNeuralAdapter(
+        return SpatialAdapter(
             trend=trend,
             basis=basis,
             train_loader=train_loader,
@@ -1087,3 +1083,90 @@ class TestInternalStepsFullBatch:
             trainer.z_train.abs().sum().item() > 0
             or trainer.u_train.abs().sum().item() > 0
         )
+
+
+class TestFitTuned:
+    """Classmethod wrapper: Optuna (tau1, tau2) sweep + refit in one call."""
+
+    def _tiny_regression_inputs(self, device):
+        torch.manual_seed(0)
+        np.random.seed(0)
+        T, N, p = 16, 4, 2
+        cont = torch.randn(T, N, p)
+        y = torch.randn(T, N)
+        locs = np.linspace(-1, 1, N).reshape(-1, 1).astype(np.float32)
+        ds = TensorDataset(torch.zeros(T, 0, dtype=torch.long), cont, y)
+        loader = DataLoader(ds, batch_size=T)
+
+        trend = TrendModel(
+            num_continuous_features=p, hidden_layer_sizes=[8], n_locations=N
+        ).to(device)
+
+        # Very short Optuna budget so the test finishes quickly.
+        config = SpatialAdapterConfig.from_dict(
+            {
+                "rho": 1.0,
+                "dual_momentum": 0.0,
+                "max_iters": 1,
+                "min_outer": 1,
+                "lr_mu": 1e-3,
+                "batch_size": T,
+                "phi_every": 1,
+                "phi_freeze": 1,
+                "tol": 1e-4,
+                "matrix_reg": 1e-6,
+                "irl1_max_iters": 2,
+                "irl1_eps": 1e-6,
+                "irl1_tol": 1e-3,
+                "pretrain_epochs": 1,
+            }
+        )
+        return trend, loader, cont[:4].to(device), y[:4].to(device), locs, config
+
+    def test_returns_trained_adapter_with_best_taus(self, device):
+        trend, loader, val_cont, val_y, locs, config = self._tiny_regression_inputs(
+            device
+        )
+        result = SpatialAdapter.fit_tuned(
+            trend=trend,
+            train_loader=loader,
+            val_cont=val_cont,
+            val_y=val_y,
+            locs=locs,
+            device=device,
+            latent_dim=2,
+            seed=0,
+            n_trials=2,  # minimum for the test; production use ~10
+            config=config,
+        )
+        # Adapter is usable — no exceptions on inference
+        out = result.adapter.reconstruct(val_cont, val_y)
+        assert out.shape == val_y.shape
+
+        # Best tau1 / tau2 lie inside the search range
+        assert 1e-4 <= result.tau1 <= 1e2
+        assert 1e-4 <= result.tau2 <= 1e2
+
+        # trials dataframe has one row per Optuna trial
+        assert len(result.trials) == 2
+        assert {"params_tau1", "params_tau2", "value"} <= set(result.trials.columns)
+
+    def test_auto_criterion_picks_rmse_for_regression(self, device):
+        trend, loader, val_cont, val_y, locs, config = self._tiny_regression_inputs(
+            device
+        )
+        # criterion defaults to "auto" -> "rmse" here
+        result = SpatialAdapter.fit_tuned(
+            trend=trend,
+            train_loader=loader,
+            val_cont=val_cont,
+            val_y=val_y,
+            locs=locs,
+            device=device,
+            latent_dim=2,
+            seed=1,
+            n_trials=2,
+            config=config,
+        )
+        # The chosen objective is RMSE (non-negative); just a smoke check.
+        assert result.trials["value"].ge(0).all()

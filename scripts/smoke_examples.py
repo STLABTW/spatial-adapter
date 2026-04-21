@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """
 Smoke test for examples/experiments/ — verifies all scripts and notebook
-imports resolve after the spatial_neural_adapter -> spatial_adapter rename.
 
 - .py files: loaded via importlib (top-level code runs; __main__ blocks don't)
 - .ipynb files: all `import` / `from X import Y` statements from every code

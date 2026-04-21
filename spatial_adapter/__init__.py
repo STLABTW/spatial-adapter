@@ -22,7 +22,7 @@ from .metrics import (
     frobenius_norm,
     fusion_score,
 )
-from .models.spatial_adapter import SpatialNeuralAdapter
+from .models.spatial_adapter import SpatialAdapter
 
 # Import main classes for easier access
 from .models.spatial_basis_learner import SpatialBasisLearner
@@ -31,7 +31,7 @@ from .models.trend_model import TrendModel
 __all__ = [
     "SpatialBasisLearner",
     "TrendModel",
-    "SpatialNeuralAdapter",
+    "SpatialAdapter",
     "generate_combined_synthetic_data",
     "generate_time_synthetic_data",
     "prepare_all",

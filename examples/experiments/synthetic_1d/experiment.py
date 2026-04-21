@@ -14,7 +14,7 @@ from examples.experiments.base import BaseExperiment, DataSplit
 from spatial_adapter.data.generators import generate_time_synthetic_data
 from spatial_adapter.data.preprocessing import prepare_all_with_scaling
 from spatial_adapter.metrics import compute_metrics, cov_frob_observed
-from spatial_adapter.models.spatial_adapter import SpatialNeuralAdapter
+from spatial_adapter.models.spatial_adapter import SpatialAdapter
 from spatial_adapter.models.trend_model import TrendModel
 from spatial_adapter.utils.experiment_helpers import compute_ols_coefficients
 
@@ -92,7 +92,7 @@ class Synthetic1DExperiment(BaseExperiment):
 
     def evaluate(
         self,
-        trainer: SpatialNeuralAdapter,
+        trainer: SpatialAdapter,
         data: DataSplit,
         model_name: str,
     ) -> dict:

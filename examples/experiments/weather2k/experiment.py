@@ -23,7 +23,7 @@ from examples.baselines.timesplit.experiment_core import (
 )
 from examples.experiments.base import BaseExperiment, DataSplit
 from spatial_adapter.metrics import compute_metrics, cov_frob_observed
-from spatial_adapter.models.spatial_adapter import SpatialNeuralAdapter
+from spatial_adapter.models.spatial_adapter import SpatialAdapter
 
 
 class Weather2KTimesplitExperiment(BaseExperiment):
@@ -196,7 +196,7 @@ class Weather2KTimesplitExperiment(BaseExperiment):
 
     def evaluate(
         self,
-        trainer: SpatialNeuralAdapter,
+        trainer: SpatialAdapter,
         data: DataSplit,
         model_name: str,
     ) -> dict:
@@ -257,7 +257,7 @@ class Weather2KHoldoutExperiment(Weather2KTimesplitExperiment):
 
     def evaluate(
         self,
-        trainer: SpatialNeuralAdapter,
+        trainer: SpatialAdapter,
         data: DataSplit,
         model_name: str,
     ) -> dict:

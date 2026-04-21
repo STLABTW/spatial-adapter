@@ -31,8 +31,8 @@ from spatial_adapter.metrics import compute_metrics, cov_frob_observed
 from spatial_adapter.models.spatial_adapter import (
     ADMMConfig,
     BasisConfig,
-    SpatialNeuralAdapter,
-    SpatialNeuralAdapterConfig,
+    SpatialAdapter,
+    SpatialAdapterConfig,
     TrainingConfig,
 )
 from spatial_adapter.tuning import AdapterTuner
@@ -88,12 +88,12 @@ def _record(
 
 
 # Adapter config from YAML dict
-def build_adapter_config(cfg: dict) -> SpatialNeuralAdapterConfig:
-    """Build SpatialNeuralAdapterConfig from a flat YAML dict."""
+def build_adapter_config(cfg: dict) -> SpatialAdapterConfig:
+    """Build SpatialAdapterConfig from a flat YAML dict."""
     admm = cfg.get("admm", {})
     training = cfg.get("training", {})
     basis = cfg.get("basis", {})
-    return SpatialNeuralAdapterConfig(
+    return SpatialAdapterConfig(
         admm=ADMMConfig(
             **{k: v for k, v in admm.items() if k in ADMMConfig.__dataclass_fields__}
         ),
@@ -165,7 +165,7 @@ class BaseExperiment(ABC):
     @abstractmethod
     def evaluate(
         self,
-        trainer: SpatialNeuralAdapter,
+        trainer: SpatialAdapter,
         data: DataSplit,
         model_name: str,
     ) -> dict:
@@ -277,7 +277,7 @@ class BaseExperiment(ABC):
     ) -> AdapterTuner:
         """Build an AdapterTuner bound to this seed's data and evaluator."""
 
-        def _eval(trainer: SpatialNeuralAdapter) -> dict:
+        def _eval(trainer: SpatialAdapter) -> dict:
             return self.evaluate(trainer, data, "")
 
         return AdapterTuner(

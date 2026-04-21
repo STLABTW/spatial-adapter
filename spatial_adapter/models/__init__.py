@@ -5,7 +5,7 @@ from .data_losses import (
     loss_data_binary,
     projection_orthogonal_complement,
 )
-from .spatial_adapter import SpatialNeuralAdapter
+from .spatial_adapter import SpatialAdapter
 from .spatial_basis_learner import SpatialBasisLearner
 from .trend_model import TrendModel
 
@@ -13,7 +13,7 @@ __all__ = [
     "TrendModel",
     "ClassificationWrapper",
     "SpatialBasisLearner",
-    "SpatialNeuralAdapter",
+    "SpatialAdapter",
     "loss_data_binary",
     "grad_Z_loss_data_binary",
     "projection_orthogonal_complement",

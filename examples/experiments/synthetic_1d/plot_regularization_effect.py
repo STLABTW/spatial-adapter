@@ -59,8 +59,8 @@ from spatial_adapter.data.preprocessing import prepare_all_with_scaling
 from spatial_adapter.models.spatial_adapter import (
     ADMMConfig,
     BasisConfig,
-    SpatialNeuralAdapter,
-    SpatialNeuralAdapterConfig,
+    SpatialAdapter,
+    SpatialAdapterConfig,
     TrainingConfig,
 )
 from spatial_adapter.models.spatial_basis_learner import SpatialBasisLearner
@@ -227,7 +227,7 @@ def run_one_lambda(data, tau, seed, prev_state=None):
     # SNR is very low, but at SNR ≈ 1.5+ the population signal already
     # dominates the residual spectrum so full-batch converges reliably.)
     max_iters = 1500 if prev_state is not None else 3000
-    config = SpatialNeuralAdapterConfig(
+    config = SpatialAdapterConfig(
         admm=ADMMConfig(
             rho=1.0, dual_momentum=0.2, max_iters=max_iters, min_outer=100, tol=1e-5
         ),
@@ -235,7 +235,7 @@ def run_one_lambda(data, tau, seed, prev_state=None):
         basis=BasisConfig(phi_every=5, phi_freeze=500),
     )
 
-    adapter = SpatialNeuralAdapter(
+    adapter = SpatialAdapter(
         trend,
         basis,
         data["train_loader"],
