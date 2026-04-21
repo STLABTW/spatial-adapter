@@ -8,35 +8,55 @@ __version__ = "0.6.0"
 __author__ = "Wen-Ting Wang"
 __email__ = "egpivo@gmail.com"
 
-# Import data generation functions
+# Data generation
 from .data.generators import (
     generate_combined_synthetic_data,
     generate_time_synthetic_data,
 )
 from .data.preprocessing import prepare_all
 
-# Import metrics
+# Metrics
 from .metrics import (
     compute_metrics,
     expected_calibration_error,
     frobenius_norm,
     fusion_score,
 )
-from .models.spatial_adapter import SpatialAdapter
 
-# Import main classes for easier access
+# Models + configs (so users can `from spatial_adapter import SpatialAdapter, ...`)
+from .models.spatial_adapter import (
+    ADMMConfig,
+    BasisConfig,
+    SpatialAdapter,
+    SpatialAdapterConfig,
+    TrainingConfig,
+)
 from .models.spatial_basis_learner import SpatialBasisLearner
 from .models.trend_model import TrendModel
 
+# Tuning
+from .tuning import AdapterTuner, FitTunedResult
+
 __all__ = [
+    # Models
+    "SpatialAdapter",
     "SpatialBasisLearner",
     "TrendModel",
-    "SpatialAdapter",
+    # Configs
+    "SpatialAdapterConfig",
+    "ADMMConfig",
+    "TrainingConfig",
+    "BasisConfig",
+    # Tuning
+    "AdapterTuner",
+    "FitTunedResult",
+    # Data
     "generate_combined_synthetic_data",
     "generate_time_synthetic_data",
     "prepare_all",
-    "fusion_score",
-    "frobenius_norm",
+    # Metrics
     "compute_metrics",
     "expected_calibration_error",
+    "frobenius_norm",
+    "fusion_score",
 ]

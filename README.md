@@ -24,26 +24,51 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
 
 ## Quick Start
 
+### Option A — one-shot tuned fit (recommended)
+
+Hides the (τ₁, τ₂) grid search behind a single call: runs a short Optuna
+sweep, refits at the best weights, returns the trained adapter plus the
+chosen τ's and the trials dataframe.
+
 ```python
 import torch
-from spatial_adapter.models.spatial_adapter import (
-    SpatialAdapter, SpatialAdapterConfig,
-)
-from spatial_adapter.models.spatial_basis_learner import SpatialBasisLearner
-from spatial_adapter.models.trend_model import TrendModel
+from spatial_adapter import SpatialAdapter, TrendModel
 
-# Stage 1: any first-stage predictor (OLS, STDK, deep backbone, ...)
 trend = TrendModel(num_continuous_features=5, hidden_layer_sizes=[], n_locations=100)
 
-# Stage 2: attach spatial adapter
+result = SpatialAdapter.fit_tuned(
+    trend, train_loader,
+    val_cont=val_X, val_y=val_Y, locs=station_coords,
+    device=torch.device("cpu"),
+    latent_dim=10,
+    n_trials=10,              # per-seed Optuna budget (defaults to 10)
+    seed=42,
+    # criterion="auto"        # regression -> rmse, binary -> accuracy
+)
+result.adapter.reconstruct(val_X, val_Y)   # trained; ready to use
+result.tau1, result.tau2                    # best weights chosen by Optuna
+result.trials                               # pandas DataFrame of all trials
+```
+
+### Option B — manual control (power users)
+
+Bypasses tuning when you already have (τ₁, τ₂) or want direct control of
+the ADMM loop.
+
+```python
+import torch
+from spatial_adapter import (
+    SpatialAdapter, SpatialAdapterConfig,
+    SpatialBasisLearner, TrendModel,
+)
+
+trend = TrendModel(num_continuous_features=5, hidden_layer_sizes=[], n_locations=100)
 basis = SpatialBasisLearner(num_locations=100, latent_dim=10)
-config = SpatialAdapterConfig()
 
 adapter = SpatialAdapter(
     trend, basis, train_loader,
-    val_cont=val_X, val_y=val_Y,
-    locs=station_coords,
-    config=config,
+    val_cont=val_X, val_y=val_Y, locs=station_coords,
+    config=SpatialAdapterConfig(),
     device=torch.device("cpu"),
     tau1=1.0, tau2=1.0,
 )

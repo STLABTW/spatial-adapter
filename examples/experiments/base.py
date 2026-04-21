@@ -12,9 +12,6 @@ The base class provides:
   - Wall-time logging   (via TimerLog)
   - Seed iteration
 """
-
-from __future__ import annotations
-
 import csv
 import time
 from abc import ABC, abstractmethod
