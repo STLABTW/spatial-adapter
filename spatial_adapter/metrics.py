@@ -358,3 +358,86 @@ def mpiw(
     if np.sum(mask) == 0:
         return float("nan")
     return float(np.mean(width[mask]))
+
+
+# Semivariogram-matching score (SV_score, paper eq:semivar-score)
+# Used as an Optuna validation criterion in the KAUST ablation (Table 4).
+
+
+def semivariogram_match_score(
+    coords: np.ndarray,
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    *,
+    bin_edges: Optional[np.ndarray] = None,
+    estimator: str = "matheron",
+    weighted: bool = True,
+    normalized: bool = False,
+    eps: float = 1e-8,
+) -> float:
+    """Weighted L² distance between the empirical semivariograms of
+    ``y_true`` and ``y_pred`` (lower = better).
+
+    This is the paper's ``SV_score`` validation criterion: compute the
+    empirical semivariogram on each field using gstools, then compare them
+    bin-by-bin, weighted by the pair-count at each lag.
+
+    Args:
+        coords: (N, d) spatial coordinates.
+        y_true, y_pred: (T, N) time-by-location fields.
+        bin_edges: lag bin edges; defaults to ``gstools.standard_bins``.
+        estimator: gstools estimator name ("matheron" or "cressie").
+        weighted: weight lags by pair-count (recommended).
+        normalized: divide residuals by ``gamma_true`` (relative error).
+        eps: numerical floor for denominators.
+
+    Returns:
+        Scalar non-negative loss; ``nan`` if all lags are empty.
+    """
+    # Lazy import — gstools is heavy and only needed for this metric.
+    import gstools as gs
+
+    coords = np.asarray(coords, dtype=np.float64)
+    y_true = np.asarray(y_true, dtype=np.float64)
+    y_pred = np.asarray(y_pred, dtype=np.float64)
+
+    if y_true.ndim != 2 or y_pred.ndim != 2:
+        raise ValueError("y_true and y_pred must be 2D (T, N)")
+    if y_true.shape != y_pred.shape:
+        raise ValueError(f"y_true {y_true.shape} and y_pred {y_pred.shape} must match")
+    if coords.shape[0] != y_true.shape[1]:
+        raise ValueError("coords.shape[0] must match y_true.shape[1]")
+
+    pos = tuple(coords[:, j] for j in range(coords.shape[1]))
+    if bin_edges is None:
+        bin_edges = gs.variogram.standard_bins(pos=pos)
+
+    def _estimate(field):
+        lags, gamma, counts = gs.vario_estimate(
+            pos=pos,
+            field=field,
+            bin_edges=bin_edges,
+            estimator=estimator,
+            return_counts=True,
+        )
+        return lags, gamma, counts
+
+    _, gamma_true, counts_true = _estimate(y_true)
+    _, gamma_pred, counts_pred = _estimate(y_pred)
+
+    mask = np.isfinite(gamma_true) & np.isfinite(gamma_pred)
+    counts = np.minimum(counts_true, counts_pred)
+    mask &= counts > 0
+
+    if not np.any(mask):
+        return float("nan")
+
+    if normalized:
+        diff = (gamma_pred[mask] - gamma_true[mask]) / (gamma_true[mask] + eps)
+    else:
+        diff = gamma_pred[mask] - gamma_true[mask]
+
+    if weighted:
+        denom = np.sum(counts[mask])
+        return float(np.sum(counts[mask] * diff**2) / max(denom, eps))
+    return float(np.mean(diff**2))

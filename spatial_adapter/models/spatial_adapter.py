@@ -580,7 +580,9 @@ class SpatialAdapter:
         latent_dim: int,
         seed: int = 0,
         n_trials: int = 10,
-        criterion: Literal["auto", "rmse", "accuracy", "auc"] = "auto",
+        criterion: Literal[
+            "auto", "rmse", "accuracy", "auc", "cov_frob", "sv_score"
+        ] = "auto",
         config: Optional["SpatialAdapterConfig"] = None,
         tau_range: Tuple[float, float] = (1e-4, 1e2),
     ):
@@ -605,8 +607,11 @@ class SpatialAdapter:
         n_trials : int, default=10
             Optuna budget. Usually enough for RMSE; tighten when the
             objective is noisier (SNR-dependent, e.g. binary accuracy).
-        criterion : {"auto", "rmse", "accuracy", "auc"}, default="auto"
+        criterion : {"auto", "rmse", "accuracy", "auc", "cov_frob", "sv_score"}, default="auto"
             "auto" -> "accuracy" for binary tasks, "rmse" for regression.
+            "cov_frob" and "sv_score" match paper Table 4's validation
+            ablation — compared against the observed val field, not a
+            dataset-specific ground-truth covariance.
         config : SpatialAdapterConfig, optional
             Shared ADMM/training/basis config. Defaults to
             ``SpatialAdapterConfig()``.
@@ -620,6 +625,7 @@ class SpatialAdapter:
             ``result.tau1`` / ``result.tau2`` / ``result.trials`` expose
             the search outcome.
         """
+        from spatial_adapter.metrics import cov_frob_observed, semivariogram_match_score
         from spatial_adapter.tuning import AdapterTuner, FitTunedResult
 
         if config is None:
@@ -630,12 +636,37 @@ class SpatialAdapter:
         direction = "maximize" if criterion in ("accuracy", "auc") else "minimize"
 
         task = config.task
+        locs_np = np.asarray(locs)
 
         def _evaluate(trainer) -> Dict[str, float]:
-            primary, f1, auc = trainer._validate()
+            # Compute y_hat once using the same formula as _validate(), then
+            # dispatch per requested criterion. RMSE is always returned so
+            # the trials dataframe is self-descriptive regardless of choice.
+            with torch.no_grad():
+                trainer.trend.eval()
+                trainer.basis.eval()
+                mu = trainer.trend(trainer.val_cont)
+                y_hat = (
+                    mu + (trainer.z_val @ trainer.basis.basis) @ trainer.basis.basis.T
+                )
+
+            rmse = math.sqrt(F.mse_loss(y_hat, trainer.val_y).item())
+            metrics: Dict[str, float] = {"rmse": rmse}
+
             if task == "binary":
-                return {"accuracy": primary, "f1": f1, "auc": auc}
-            return {"rmse": primary}
+                acc, f1, auc = compute_binary_metrics(trainer.val_y, y_hat)
+                metrics.update({"accuracy": acc, "f1": f1, "auc": auc})
+
+            if criterion in ("cov_frob", "sv_score"):
+                y_true_np = trainer.val_y.detach().cpu().numpy()
+                y_pred_np = y_hat.detach().cpu().numpy()
+                if criterion == "cov_frob":
+                    metrics["cov_frob"] = cov_frob_observed(y_true_np, y_pred_np)
+                else:
+                    metrics["sv_score"] = semivariogram_match_score(
+                        locs_np, y_true_np, y_pred_np
+                    )
+            return metrics
 
         n_locations = int(val_y.shape[-1])
 

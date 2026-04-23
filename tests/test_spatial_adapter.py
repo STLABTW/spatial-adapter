@@ -1170,3 +1170,74 @@ class TestFitTuned:
         )
         # The chosen objective is RMSE (non-negative); just a smoke check.
         assert result.trials["value"].ge(0).all()
+
+    def test_cov_frob_criterion(self, device):
+        """criterion='cov_frob' optimises the observed Frobenius covariance error."""
+        trend, loader, val_cont, val_y, locs, config = self._tiny_regression_inputs(
+            device
+        )
+        # Need T_val >= 2 so the empirical covariance is defined.
+        assert val_y.shape[0] >= 2
+        result = SpatialAdapter.fit_tuned(
+            trend=trend,
+            train_loader=loader,
+            val_cont=val_cont,
+            val_y=val_y,
+            locs=locs,
+            device=device,
+            latent_dim=2,
+            seed=2,
+            n_trials=2,
+            criterion="cov_frob",
+            config=config,
+        )
+        assert result.trials["value"].ge(0).all()
+
+    def test_sv_score_criterion(self, device):
+        """criterion='sv_score' uses the semivariogram-matching loss.
+
+        Needs enough (N, T_val) for gstools.vario_estimate bins to be
+        populated, otherwise every trial returns nan and Optuna errors.
+        """
+        torch.manual_seed(7)
+        np.random.seed(7)
+        T, N, p = 40, 20, 2
+        cont = torch.randn(T, N, p)
+        y = torch.randn(T, N)
+        locs = np.linspace(-1, 1, N).reshape(-1, 1).astype(np.float32)
+        ds = TensorDataset(torch.zeros(T, 0, dtype=torch.long), cont, y)
+        loader = DataLoader(ds, batch_size=T)
+
+        trend = TrendModel(
+            num_continuous_features=p, hidden_layer_sizes=[8], n_locations=N
+        ).to(device)
+        config = SpatialAdapterConfig.from_dict(
+            {
+                "rho": 1.0,
+                "max_iters": 1,
+                "min_outer": 1,
+                "lr_mu": 1e-3,
+                "batch_size": T,
+                "phi_every": 1,
+                "phi_freeze": 1,
+                "tol": 1e-4,
+                "matrix_reg": 1e-6,
+                "pretrain_epochs": 1,
+            }
+        )
+        result = SpatialAdapter.fit_tuned(
+            trend=trend,
+            train_loader=loader,
+            val_cont=cont[:10].to(device),
+            val_y=y[:10].to(device),
+            locs=locs,
+            device=device,
+            latent_dim=2,
+            seed=3,
+            n_trials=2,
+            criterion="sv_score",
+            config=config,
+        )
+        # SV_score is a weighted L² distance; non-negative where defined.
+        vals = result.trials["value"].to_numpy()
+        assert np.all(vals >= 0)

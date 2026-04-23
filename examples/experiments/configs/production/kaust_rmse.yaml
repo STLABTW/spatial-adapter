@@ -5,7 +5,7 @@
 experiment:
   name: kaust_rmse
   seed_start: 1
-  n_replications: 100
+  n_replications: 30
   n_optuna_trials: 50
   optuna_objective: rmse
   optuna_direction: minimize

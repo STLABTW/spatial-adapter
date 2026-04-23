@@ -1,0 +1,50 @@
+# Sanity config: 5 seeds to verify calibrated PI wiring before 100-seed run.
+# Copy of weather2k_holdout.yaml with n_replications trimmed; writes to a
+# separate output_dir so it doesn't overwrite the 100-seed production run.
+experiment:
+  name: weather2k_holdout
+  seed_start: 1
+  n_replications: 5
+  n_optuna_trials: 10
+  output_dir: results/sanity/weather2k_holdout_5seed
+
+data:
+  npy_path: data/weather2k/weather2k.npy
+  target_var_idx: 2
+  lat_idx: 0
+  lon_idx: 1
+  t_keep: 1000
+  latent_dim: 40
+  space_ratio_keep: 0.1
+  heldout_station_ratio: 0.2
+  train_ratio: 0.1
+  val_ratio: 0.1
+  test_ratio: 0.8
+
+first_stage:
+  type: stdk
+  epochs: 350
+  lr: 1.0e-3
+  weight_decay: 1.0e-4
+  batch_size: 512
+  patience: 30
+
+adapter:
+  admm:
+    rho: 5.0
+    dual_momentum: 0.2
+    max_iters: 3000
+    min_outer: 100
+    tol: 1.0e-4
+  training:
+    lr_mu: 1.0e-3
+    batch_size: 128
+    pretrain_epochs: 5
+  basis:
+    phi_every: 5
+    phi_freeze: 100
+    matrix_reg: 1.0e-6
+    irl1_max_iters: 10
+    irl1_eps: 1.0e-6
+    irl1_tol: 5.0e-4
+  tau_range: [1.0e-4, 1.0e+8]

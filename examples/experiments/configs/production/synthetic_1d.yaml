@@ -4,7 +4,7 @@
 experiment:
   name: synthetic_1d
   seed_start: 1
-  n_replications: 100
+  n_replications: 30
   n_optuna_trials: 20
   output_dir: results/production/synthetic_1d
 

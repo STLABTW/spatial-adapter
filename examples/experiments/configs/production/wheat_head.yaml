@@ -5,7 +5,7 @@
 experiment:
   name: wheat_head
   seed_start: 42
-  n_replications: 100
+  n_replications: 30
   n_optuna_trials: 30
   optuna_objective: accuracy
   optuna_direction: maximize

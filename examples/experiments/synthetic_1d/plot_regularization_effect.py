@@ -34,20 +34,20 @@ mpl.rcParams.update(
         "font.family": "serif",
         "font.serif": ["DejaVu Serif", "Times New Roman"],
         "mathtext.fontset": "cm",
-        "axes.linewidth": 0.7,
-        "axes.labelsize": 9,
-        "axes.titlesize": 9,
+        "axes.linewidth": 0.8,
+        "axes.labelsize": 11,
+        "axes.titlesize": 11,
         "axes.spines.top": False,
         "axes.spines.right": False,
-        "xtick.labelsize": 8,
-        "ytick.labelsize": 8,
+        "xtick.labelsize": 9,
+        "ytick.labelsize": 9,
         "xtick.direction": "out",
         "ytick.direction": "out",
-        "xtick.major.width": 0.7,
-        "ytick.major.width": 0.7,
-        "legend.fontsize": 8,
+        "xtick.major.width": 0.8,
+        "ytick.major.width": 0.8,
+        "legend.fontsize": 9,
         "legend.frameon": False,
-        "lines.linewidth": 1.5,
+        "lines.linewidth": 1.6,
         "savefig.dpi": 300,
         "savefig.bbox": "tight",
         "savefig.pad_inches": 0.02,
@@ -68,8 +68,10 @@ from spatial_adapter.models.trend_model import TrendModel
 from spatial_adapter.utils.experiment_helpers import compute_ols_coefficients
 
 # Configuration
-SEEDS = list(range(42, 52))  # 10 seeds — shaded band ± 1 std across seeds
-REFERENCE_SEED = 42  # seed used for the covariance/basis heatmaps
+SEEDS = list(range(42, 72))  # 30 seeds — shaded band ± 1 std across seeds
+REFERENCE_SEED = None  # picked dynamically: the seed whose mean CovFrob over
+# the λ-grid is closest to the cross-seed median (i.e.
+# a median-representative seed, not a cherry-picked one).
 N_LOCATIONS = 512
 N_TIME_STEPS = 1024
 NOISE_STD = 4.0
@@ -392,15 +394,31 @@ def _load_or_run_sweep():
     align_sn = np.zeros((n_seeds, n_taus))
     covf_sn = np.zeros((n_seeds, n_taus))
 
-    ref_data = None
-    ref_results = None
+    # Hold per-seed (data, results) in memory so we can pick a
+    # median-representative seed *after* the full sweep has completed
+    # rather than hard-coding seed 42.
+    all_data: dict = {}
+    all_results: dict = {}
     for s_idx, seed in enumerate(SEEDS):
         data, results = run_sweep(seed)
         align_sn[s_idx] = [r["alignment"] for r in results]
         covf_sn[s_idx] = [r["covfrob"] for r in results]
-        if seed == REFERENCE_SEED:
-            ref_data = data
-            ref_results = results
+        all_data[seed] = data
+        all_results[seed] = results
+
+    # Pick the seed whose mean CovFrob over the λ-grid is closest to the
+    # cross-seed median.  Using the median (not seed 42) as the heatmap
+    # source pre-empts the "cherry-picked seed" concern.
+    seed_mean_covf = covf_sn.mean(axis=1)  # (n_seeds,)
+    median_of_means = float(np.median(seed_mean_covf))
+    rep_idx = int(np.argmin(np.abs(seed_mean_covf - median_of_means)))
+    rep_seed = SEEDS[rep_idx]
+    print(
+        f"Representative seed (median mean-CovFrob across λ-grid): {rep_seed} "
+        f"(mean CovFrob {seed_mean_covf[rep_idx]:.4f} vs. median {median_of_means:.4f})"
+    )
+    ref_data = all_data[rep_seed]
+    ref_results = all_results[rep_seed]
 
     taus = np.array([r["tau"] for r in ref_results])
     sigma_hats_ref = np.stack([r["sigma_hat"] for r in ref_results])
@@ -476,9 +494,11 @@ def main():
         f"\nBest: λ={best_tau:.2e}, align={best_align:.4f}, CovFrob={best_covfrob:.4f}"
     )
 
-    # ColorBrewer deep blue / deep orange — CVD-safe and grayscale-separable.
+    # Okabe–Ito deep blue / vermillion — CVD-safe and grayscale-separable.
+    # Vermillion (#D55E00) reads as a deep amber/burnt-orange, far enough
+    # from bright yellow to stay stable under print/camera-ready scaling.
     C_ALIGN = "#0072B2"
-    C_COVF = "#E69F00"
+    C_COVF = "#D55E00"
 
     # (a) Regularization path
     # Median [25–75% IQR] over n seeds. X-axis truncated to [1e-3, 10]:
@@ -492,22 +512,22 @@ def main():
         "-",
         color=C_ALIGN,
         marker="o",
-        markersize=3.2,
+        markersize=4.2,
         markeredgewidth=0,
     )
-    ax1.fill_between(taus, align_q25, align_q75, color=C_ALIGN, alpha=0.18, linewidth=0)
+    ax1.fill_between(taus, align_q25, align_q75, color=C_ALIGN, alpha=0.12, linewidth=0)
     ax1.axvline(best_tau, color="0.4", linestyle=":", linewidth=0.9)
     ax1.text(
         best_tau,
         0.04,
         rf" $\lambda^\star={best_tau:.2f}$",
-        fontsize=8,
+        fontsize=9,
         color="0.3",
         va="bottom",
         ha="left",
     )
-    ax1.set_xlabel(r"Regularization strength  $\lambda$  ($\lambda_1=\lambda_2$)")
-    ax1.set_ylabel(r"Basis alignment  $|\langle \hat\phi,\phi\rangle|$", color=C_ALIGN)
+    ax1.set_xlabel(r"Regularization strength  $\lambda$")
+    ax1.set_ylabel("Basis alignment", color=C_ALIGN)
     ax1.tick_params(axis="y", colors=C_ALIGN)
     ax1.set_xlim(1e-3, 1e1)
     ax1.set_ylim(0.0, 1.04)
@@ -521,23 +541,25 @@ def main():
     ax2.semilogx(
         taus,
         covf_median,
-        "-",
+        "--",
         color=C_COVF,
         marker="s",
-        markersize=3.2,
+        markersize=4.2,
         markeredgewidth=0,
     )
-    ax2.fill_between(taus, covf_q25, covf_q75, color=C_COVF, alpha=0.18, linewidth=0)
-    ax2.set_ylabel(r"CovFrob  $\|\hat\Sigma-\Sigma\|_F / \|\Sigma\|_F$", color=C_COVF)
+    ax2.fill_between(taus, covf_q25, covf_q75, color=C_COVF, alpha=0.12, linewidth=0)
+    ax2.set_ylabel("CovFrob", color=C_COVF)
     ax2.tick_params(axis="y", colors=C_COVF)
 
-    # Caption-style legend: two tiny inline proxies, no box.
+    # Caption-style legend with redundant encoding (colour + marker + linestyle)
+    # so the two series remain distinguishable under grayscale printing.
     proxy_align = mpl.lines.Line2D(
         [],
         [],
         color=C_ALIGN,
+        linestyle="-",
         marker="o",
-        markersize=3.2,
+        markersize=4.2,
         markeredgewidth=0,
         label="Basis alignment",
     )
@@ -545,8 +567,9 @@ def main():
         [],
         [],
         color=C_COVF,
+        linestyle="--",
         marker="s",
-        markersize=3.2,
+        markersize=4.2,
         markeredgewidth=0,
         label="CovFrob",
     )
@@ -568,37 +591,54 @@ def main():
     # Three representative λ (under / optimal / over) + ground truth.
     # Shared colormap anchored on the ground-truth off-diagonal magnitude
     # so under-regularized panels saturate — that saturation *is* the
-    # message. Use coolwarm (grayscale-safe diverging) instead of RdBu_r.
-    target_taus = [best_tau / 10.0, best_tau, best_tau * 50.0]
+    # message.  The ground-truth basis is sign-definite (Gaussian bump),
+    # so off-diagonal covariances are ≥ 0; we use the light-background
+    # sequential map ``OrRd`` (white → orange → red, colorblind-safe,
+    # print-safe) so that low-magnitude artifact structure remains
+    # readable at paper-column size — contrast with a dark-background
+    # map that compresses low values into near-black.
+    # Pick λ one clear order of magnitude below and above the selected λ*
+    # (100× on each side, snapping to the nearest grid point).  The left
+    # panel lands near the grid floor (λ≈10⁻³), making the under-regularized
+    # regime's spurious off-diagonal structure unambiguous.
+    target_taus = [best_tau / 100.0, best_tau, best_tau * 50.0]
     pick_idx = sorted(
         {int(np.argmin(np.abs(np.log10(taus) - np.log10(t)))) for t in target_taus}
     )
 
-    def _offdiag_99(sigma):
+    def _offdiag_q(sigma, q):
         s = sigma.copy()
         np.fill_diagonal(s, np.nan)
-        return float(np.nanpercentile(np.abs(s), 99))
+        return float(np.nanpercentile(np.abs(s), q))
 
-    vmax = _offdiag_99(sigma_true)
+    # Anchor vmax on the 90th percentile of the ground-truth off-diagonal
+    # (rather than the 99th).  The top 10% gets clipped to the darkest
+    # red in over-regularized panels, which is semantically fine; the
+    # pay-off is that the mid-to-high range of well-fitted panels uses
+    # more of the colormap (yellow → orange → red), making the optimal
+    # and mild-under-reg panels easier to tell apart at paper-column size.
+    vmax = _offdiag_q(sigma_true, 90)
     n_panels = len(pick_idx) + 1
-    fig, axes = plt.subplots(1, n_panels, figsize=(5.8, 1.85), constrained_layout=True)
+    fig, axes = plt.subplots(1, n_panels, figsize=(6.6, 2.2), constrained_layout=True)
 
     def _plot_cov(ax, sigma, title):
         s = sigma.copy()
         np.fill_diagonal(s, np.nan)
         im = ax.imshow(
             s,
-            cmap="coolwarm",
+            # YlOrRd has four stops (yellow → orange → red → dark-red) vs.
+            # OrRd's three — more perceptual range in the mid-high region.
+            cmap="YlOrRd",
             aspect="equal",
-            vmin=-vmax,
+            vmin=0.0,
             vmax=vmax,
             interpolation="nearest",
         )
-        ax.set_title(title, fontsize=9, pad=3)
+        ax.set_title(title, fontsize=11, pad=3)
         ax.set_xticks([])
         ax.set_yticks([])
         for spine in ax.spines.values():
-            spine.set_linewidth(0.5)
+            spine.set_linewidth(0.6)
             spine.set_visible(True)
         return im
 
@@ -606,9 +646,9 @@ def main():
     for j, idx in enumerate(pick_idx):
         _plot_cov(axes[j + 1], sigma_hats_ref[idx], rf"$\lambda={taus[idx]:.2g}$")
 
-    cbar = fig.colorbar(im, ax=axes, fraction=0.025, pad=0.015)
-    cbar.ax.tick_params(labelsize=7, width=0.5)
-    cbar.outline.set_linewidth(0.5)
+    cbar = fig.colorbar(im, ax=axes, fraction=0.028, pad=0.015)
+    cbar.ax.tick_params(labelsize=9, width=0.6)
+    cbar.outline.set_linewidth(0.6)
 
     path_b = OUTPUT_DIR / "covariance_evolution.png"
     fig.savefig(path_b)

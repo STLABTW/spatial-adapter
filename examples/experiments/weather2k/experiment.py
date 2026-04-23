@@ -233,25 +233,99 @@ class Weather2KTimesplitExperiment(BaseExperiment):
 
 
 class Weather2KHoldoutExperiment(Weather2KTimesplitExperiment):
-    """Weather2K with held-out stations for spatial prediction (kriging)."""
+    """Weather2K with held-out stations for spatial prediction (kriging).
+
+    Contrary to ``Weather2KTimesplitExperiment``, held-out stations are
+    *actually* removed from the adapter and STDK training data; their
+    Y values are only used to evaluate held-out-station metrics at
+    test time via the conditional-kriging predictor of paper §4.1.
+    """
 
     def load_data(self, seed: int) -> DataSplit:
-        """Load data with station holdout for spatial prediction."""
+        from torch.utils.data import TensorDataset
 
         cfg = self.data_cfg
         data = super().load_data(seed)
 
-        # Further split stations into observed / held-out
+        # Split stations into observed (training) vs held-out (eval only).
+        # Use a distinct RNG offset from the 10% spatial subsample so the
+        # two random choices are independent.
         heldout_ratio = cfg.get("heldout_station_ratio", 0.2)
-        N = data.n_locations
-        rng = np.random.RandomState(seed)
-        perm = rng.permutation(N)
-        n_heldout = int(np.round(heldout_ratio * N))
+        N_full = data.n_locations
+        rng = np.random.RandomState(seed + 33333)
+        perm = rng.permutation(N_full)
+        n_heldout = int(np.round(heldout_ratio * N_full))
         heldout_idx = np.sort(perm[:n_heldout])
         observed_idx = np.sort(perm[n_heldout:])
 
+        # Save full-N references BEFORE we overwrite DataSplit fields.
+        locs_full = data.locs  # (N_full, 2) numpy
+        y_all_full = data.metadata["y_all"]  # (T, N_full) tensor
+        uniq_t = data.metadata["uniq_t"]
+        test_idx = data.metadata["test_idx"]
+        train_idx = data.metadata["train_idx"]
+        val_idx = data.metadata["val_idx"]
+
+        # ----- Restrict adapter-side DataSplit to observed stations -----
+        data.train_y = data.train_y[:, observed_idx].contiguous()
+        data.val_y = data.val_y[:, observed_idx].contiguous()
+        data.test_y = data.test_y[:, observed_idx].contiguous()
+        data.train_cont = data.train_cont[:, observed_idx, :].contiguous()
+        data.val_cont = data.val_cont[:, observed_idx, :].contiguous()
+        data.test_cont = data.test_cont[:, observed_idx, :].contiguous()
+        data.locs = locs_full[observed_idx]
+        data.n_locations = len(observed_idx)
+
+        # Rebuild the adapter train loader on the observed subset
+        # (ADMM's Φ / Z / U dimensions all follow data.n_locations).
+        cat_dummy = torch.zeros(data.train_y.shape[0], data.n_locations, 0)
+        data.train_loader = DataLoader(
+            TensorDataset(cat_dummy, data.train_cont, data.train_y),
+            batch_size=self.adapter_config.training.batch_size,
+            shuffle=True,
+        )
+
+        # Rebuild STDK loaders on observed stations only, so the backbone
+        # is likewise blind to held-out Y during training.
+        coords_obs = torch.tensor(data.locs, dtype=torch.float32)
+        y_all_obs = y_all_full[:, observed_idx].contiguous()
+        N_obs = data.n_locations
+
+        def _build_stdk_loader(time_idx, shuffle=True):
+            n_t = len(time_idx)
+            coords_flat = coords_obs.unsqueeze(0).expand(n_t, -1, -1).reshape(-1, 2)
+            t_vals = (
+                torch.tensor(uniq_t[time_idx], dtype=torch.float32)
+                .unsqueeze(1)
+                .expand(-1, N_obs)
+                .reshape(-1, 1)
+            )
+            X_flat = torch.zeros(n_t * N_obs, 0)
+            y_flat = y_all_obs[time_idx].reshape(-1, 1)
+            ds = DictDataset(X_flat, coords_flat, t_vals, y_flat)
+            return DataLoader(
+                ds,
+                batch_size=self.config.get("first_stage", {}).get("batch_size", 512),
+                shuffle=shuffle,
+                collate_fn=collate_fn,
+            )
+
+        data.metadata["stdk_train_loader"] = _build_stdk_loader(train_idx)
+        data.metadata["stdk_val_loader"] = _build_stdk_loader(val_idx, shuffle=False)
+        data.metadata["coords"] = coords_obs
+        data.metadata["y_all"] = y_all_obs
+
+        # Held-out bookkeeping — never used during training, only at evaluate().
         data.metadata["observed_idx"] = observed_idx
         data.metadata["heldout_idx"] = heldout_idx
+        data.metadata["locs_full"] = locs_full
+        data.metadata["locs_heldout"] = locs_full[heldout_idx]
+        data.metadata["test_y_heldout"] = y_all_full[test_idx][:, heldout_idx].float()
+        # Held-out Y at val times — used as the calibration set for post-hoc
+        # conformal PI.  Matches the test distribution (held-out space × unseen
+        # time), and is disjoint from both training (masked) and Optuna
+        # hyperparameter selection (which uses val_y at OBSERVED stations).
+        data.metadata["val_y_heldout"] = y_all_full[val_idx][:, heldout_idx].float()
 
         return data
 
@@ -261,14 +335,23 @@ class Weather2KHoldoutExperiment(Weather2KTimesplitExperiment):
         data: DataSplit,
         model_name: str,
     ) -> dict:
-        """Evaluate spatial prediction at held-out stations.
+        """Evaluate spatial prediction at held-out stations using paper §4.1.
 
-        Returns RMSE, MPIW, and CP against the continuous target at held-out
-        stations (paper Table 6).  MPIW / CP use the closed-form plug-in
-        variance
-        $v(\\mathbf s)=\\sum_k \\phi_k(\\mathbf s)^2\\,\\hat\\Lambda_k+\\hat\\sigma^2$
-        evaluated from the training-station residual covariance.
+        Held-out stations are *not* part of training data (masked in
+        ``load_data``); their Y values are used only to score the
+        conditional-kriging predictor built from training-station
+        residuals.  PI is reported in two flavours:
+
+          * plug-in Gaussian (z=1.96) — eq:cgi special case
+          * post-hoc calibrated (q̂_α) — eq:calibrated-q, val-set calibrated
         """
+        from spatial_adapter.cpp_extensions import spatial_utils as _su
+        from spatial_adapter.prediction import (
+            calibrate_q,
+            conditional_covariance,
+            conditional_score,
+        )
+
         metrics = super().evaluate(trainer, data, model_name)
 
         heldout_idx = data.metadata.get("heldout_idx")
@@ -278,43 +361,176 @@ class Weather2KHoldoutExperiment(Weather2KTimesplitExperiment):
         trainer.trend.eval()
         trainer.basis.eval()
 
-        with torch.no_grad():
-            test_y = data.test_y.to(self.device)
-            mu = trainer.trend(data.test_cont.to(self.device))
-            y_pred_heldout = mu[:, heldout_idx]
-            y_true_heldout = test_y[:, heldout_idx]
+        try:
+            # ── STDK predictions at BOTH observed and held-out stations at
+            # test times, computed directly on the underlying STDK model so
+            # we aren't limited to the trend wrapper's observed-only coords.
+            stdk = trainer.trend.stdk_model
+            coords_obs = data.metadata["coords"].to(self.device)  # (N_obs, 2)
+            coords_ho = torch.tensor(
+                data.metadata["locs_heldout"], dtype=torch.float32
+            ).to(
+                self.device
+            )  # (N_ho, 2)
+            uniq_t = data.metadata["uniq_t"]
+            test_idx = data.metadata["test_idx"]
+            t_test_vals = torch.tensor(uniq_t[test_idx], dtype=torch.float32)
 
-            rmse_ho, _, _ = compute_metrics(y_true_heldout, y_pred_heldout)
-            metrics["rmse_heldout"] = round(rmse_ho, 6)
+            N_obs = coords_obs.shape[0]
+            coords_ho.shape[0]
+            T_test = len(test_idx)
 
-            # --- Plug-in interval: v(s) = sum_k phi_k(s)^2 Lambda_k + sigma^2 ---
-            try:
-                Phi = trainer.basis.basis  # (N, K)
-                train_cont = data.train_cont.to(self.device)
-                train_y = data.train_y.to(self.device)
-                mu_train = trainer.trend(train_cont)
-                R_train = train_y - mu_train
-                S = (R_train.T @ R_train) / R_train.shape[0]
-                PhiTS = Phi.T @ S @ Phi
-                eigvals = torch.linalg.eigvalsh(PhiTS)
+            def _stdk_predict(coords, t_vals):
+                """Predict STDK at (coords, t_vals) pairs per time step."""
+                n = coords.shape[0]
+                T = len(t_vals)
+                out = torch.empty(T, n, device=self.device)
+                with torch.no_grad():
+                    for i in range(T):
+                        t_i = torch.full((n, 1), float(t_vals[i]), device=self.device)
+                        out[i] = stdk(
+                            torch.zeros(n, 0, device=self.device),
+                            coords.to(self.device),
+                            t_i,
+                        ).squeeze(-1)
+                return out
+
+            mu_obs_test = _stdk_predict(coords_obs, t_test_vals)  # (T_test, N_obs)
+            mu_ho_test = _stdk_predict(coords_ho, t_test_vals)  # (T_test, N_ho)
+
+            # Residuals on training set → estimate Λ (K,) and σ²
+            with torch.no_grad():
+                Phi_obs = trainer.basis.basis.detach()  # (N_obs, K)
+                mu_train = trainer.trend(data.train_cont.to(self.device))
+                R_train = data.train_y.to(self.device) - mu_train  # (T_train, N_obs)
+                S = (R_train.T @ R_train) / R_train.shape[0]  # (N_obs, N_obs)
+                eigvals = torch.linalg.eigvalsh(Phi_obs.T @ S @ Phi_obs)
                 sigma2 = max(
                     1e-6,
                     (torch.trace(S).item() - eigvals.sum().item())
-                    / (data.n_locations - self.latent_dim),
+                    / (N_obs - self.latent_dim),
                 )
-                Lambda = torch.clamp(eigvals - sigma2, min=0.0)
-                v_s = (Phi**2) @ Lambda + sigma2  # (N,)
+                Lambda = torch.clamp(eigvals - sigma2, min=0.0).cpu().numpy()  # (K,)
 
-                sqrt_v_ho = torch.sqrt(v_s[heldout_idx]).unsqueeze(0)  # (1, n_ho)
-                y_lo = y_pred_heldout - 1.96 * sqrt_v_ho
-                y_hi = y_pred_heldout + 1.96 * sqrt_v_ho
+            # TPS-interpolate basis to held-out (paper line 1724)
+            Phi_obs_np = Phi_obs.detach().cpu().numpy().astype(np.float64)
+            Phi_ho_np = _su.interpolate_eigenfunction(
+                data.metadata["locs_heldout"].astype(np.float64),
+                data.locs.astype(np.float64),
+                Phi_obs_np,
+            )  # (N_ho, K)
 
-                mpiw = (y_hi - y_lo).mean().item()
-                metrics["mpiw"] = round(mpiw, 6)
+            # Residuals at test times (observed stations only — held-out
+            # residuals are what we're predicting).
+            with torch.no_grad():
+                R_test_obs = (
+                    (data.test_y.to(self.device) - mu_obs_test)
+                    .cpu()
+                    .numpy()
+                    .astype(np.float64)
+                )  # (T_test, N_obs)
 
-                covered = ((y_true_heldout >= y_lo) & (y_true_heldout <= y_hi)).float()
-                metrics["cp"] = round(covered.mean().item() * 100.0, 4)
-            except Exception as e:
-                print(f"  [warning] holdout MPIW/CP failed: {e}")
+            # Per-time conditional mean + variance at each held-out station.
+            # All training stations are observable at each test time, so
+            # Λ_cond is shared across j; α_j depends on the per-time residual.
+            Lambda_diag = np.diag(Lambda)
+            Lambda_cond = conditional_covariance(
+                Lambda_diag, Phi_obs_np, sigma2
+            )  # (K, K)
+
+            # α_j for every test time j, stacked → (T_test, K)
+            alpha_all = np.stack(
+                [
+                    conditional_score(Lambda_cond, Phi_obs_np, R_test_obs[j], sigma2)
+                    for j in range(T_test)
+                ],
+                axis=0,
+            )
+
+            # Conditional predictor + variance at held-out stations.
+            # v̂(s*) = φ̂(s*)^T Λ_cond φ̂(s*) + σ²
+            y_pred_heldout = (
+                mu_ho_test.cpu().numpy() + alpha_all @ Phi_ho_np.T
+            )  # (T_test, N_ho)
+            v_ho = (
+                np.einsum("ik,kl,il->i", Phi_ho_np, Lambda_cond, Phi_ho_np) + sigma2
+            )  # (N_ho,)
+            sqrt_v_ho = np.sqrt(np.maximum(v_ho, 1e-12))  # (N_ho,)
+
+            y_true_heldout = data.metadata["test_y_heldout"].numpy()  # (T_test, N_ho)
+
+            # RMSE at held-out
+            rmse_ho = float(np.sqrt(np.mean((y_true_heldout - y_pred_heldout) ** 2)))
+            metrics["rmse_heldout"] = round(rmse_ho, 6)
+
+            # Plug-in Gaussian PI (uncalibrated)
+            y_lo = y_pred_heldout - 1.96 * sqrt_v_ho[None, :]
+            y_hi = y_pred_heldout + 1.96 * sqrt_v_ho[None, :]
+            metrics["mpiw"] = round(float(np.mean(y_hi - y_lo)), 6)
+            metrics["cp"] = round(
+                float(
+                    np.mean((y_true_heldout >= y_lo) & (y_true_heldout <= y_hi)) * 100.0
+                ),
+                4,
+            )
+
+            # Post-hoc calibrated PI (paper eq:calibrated-q).
+            # Calibration set = HELD-OUT stations × VAL times (same spatial
+            # OOD regime as test, different time window).  Held-out Y at val
+            # times is never used in training (masked in load_data) nor in
+            # hyperparameter selection (Optuna minimises RMSE on OBSERVED val
+            # stations), so this calibration is leak-free yet distribution-
+            # matched to the test query point.
+            val_y_heldout = data.metadata["val_y_heldout"].numpy()  # (T_val, N_ho)
+            t_val_vals = torch.tensor(
+                uniq_t[data.metadata["val_idx"]], dtype=torch.float32
+            )
+            mu_obs_val = _stdk_predict(coords_obs, t_val_vals)  # (T_val, N_obs)
+            mu_ho_val = _stdk_predict(coords_ho, t_val_vals)  # (T_val, N_ho)
+
+            R_val_obs = (
+                (data.val_y.to(self.device) - mu_obs_val)
+                .cpu()
+                .numpy()
+                .astype(np.float64)
+            )
+
+            T_val = R_val_obs.shape[0]
+            alpha_val = np.stack(
+                [
+                    conditional_score(Lambda_cond, Phi_obs_np, R_val_obs[j], sigma2)
+                    for j in range(T_val)
+                ],
+                axis=0,
+            )  # (T_val, K)
+            # Predict Y at held-out × val times using the same conditional-
+            # kriging pipeline as test-time prediction.
+            y_pred_val_ho = mu_ho_val.cpu().numpy() + alpha_val @ Phi_ho_np.T
+
+            q_hat = calibrate_q(
+                y_cal=val_y_heldout.ravel(),
+                eta_hat_cal=y_pred_val_ho.ravel(),
+                pred_var_cal=np.broadcast_to(
+                    v_ho[None, :], y_pred_val_ho.shape
+                ).ravel(),
+                alpha=0.05,
+            )
+            metrics["q_hat"] = round(float(q_hat), 4)
+
+            y_lo_cal = y_pred_heldout - q_hat * sqrt_v_ho[None, :]
+            y_hi_cal = y_pred_heldout + q_hat * sqrt_v_ho[None, :]
+            metrics["mpiw_calibrated"] = round(float(np.mean(y_hi_cal - y_lo_cal)), 6)
+            metrics["cp_calibrated"] = round(
+                float(
+                    np.mean((y_true_heldout >= y_lo_cal) & (y_true_heldout <= y_hi_cal))
+                    * 100.0
+                ),
+                4,
+            )
+        except Exception as e:
+            import traceback
+
+            traceback.print_exc()
+            print(f"  [warning] holdout conditional-kriging eval failed: {e}")
 
         return metrics

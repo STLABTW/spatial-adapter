@@ -43,12 +43,28 @@ result = SpatialAdapter.fit_tuned(
     latent_dim=10,
     n_trials=10,              # per-seed Optuna budget (defaults to 10)
     seed=42,
-    # criterion="auto"        # regression -> rmse, binary -> accuracy
+    criterion="auto",         # see table below
 )
 result.adapter.reconstruct(val_X, val_Y)   # trained; ready to use
 result.tau1, result.tau2                    # best weights chosen by Optuna
 result.trials                               # pandas DataFrame of all trials
 ```
+
+**Validation criterion** — what Optuna minimizes/maximizes over (τ₁, τ₂):
+
+| `criterion` | Task | Direction | What it measures |
+|---|---|---|---|
+| `"auto"` *(default)* | any | — | regression → `rmse`, binary → `accuracy` |
+| `"rmse"` | regression | min | point-prediction RMSE on val |
+| `"accuracy"` | binary | max | classification accuracy on val |
+| `"auc"` | binary | max | ROC AUC on val |
+| `"cov_frob"` | regression | min | relative Frobenius covariance error, \|\|Σ̂_pred − Σ̂_obs\|\|_F / \|\|Σ̂_obs\|\|_F |
+| `"sv_score"` | regression | min | weighted L² distance between empirical semivariograms of val and prediction (gstools) |
+
+For the paper's **KAUST Table 4 ablation** (RMSE vs CovFrob vs SV_score
+selection), use these criteria directly. For domain-specific ground-truth
+covariance (e.g. a known Matérn model), fall back to `AdapterTuner` with a
+custom `evaluate_fn`.
 
 ### Option B — manual control (power users)
 
