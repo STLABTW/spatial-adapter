@@ -21,7 +21,12 @@ import yaml
 EXPERIMENT_REGISTRY = {
     "synthetic_1d": "examples.experiments.synthetic_1d.experiment.Synthetic1DExperiment",
     "kaust": "examples.experiments.kaust_2b8.experiment.KAUSTExperiment",
+    "kaust_rmse": "examples.experiments.kaust_2b8.experiment.KAUSTExperiment",
+    "kaust_covfrob": "examples.experiments.kaust_2b8.experiment.KAUSTExperiment",
+    "kaust_svscore": "examples.experiments.kaust_2b8.experiment.KAUSTExperiment",
     "weather2k_timesplit": "examples.experiments.weather2k.experiment.Weather2KTimesplitExperiment",
+    "weather2k_10_10_80": "examples.experiments.weather2k.experiment.Weather2KTimesplitExperiment",
+    "weather2k_80_10_10": "examples.experiments.weather2k.experiment.Weather2KTimesplitExperiment",
     "weather2k_holdout": "examples.experiments.weather2k.experiment.Weather2KHoldoutExperiment",
     "wheat_head": "examples.experiments.wheat_head.experiment.WheatHeadExperiment",
 }
