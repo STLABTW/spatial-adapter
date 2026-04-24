@@ -505,7 +505,7 @@ def main():
     # beyond λ=10 the basis has fully collapsed and |⟨φ̂, φ⟩| behaves like
     # |⟨random unit vector, φ⟩| ~ 1/√N — uninformative noise rather than
     # a property of the method.
-    fig, ax1 = plt.subplots(figsize=(5.8, 2.8), constrained_layout=True)
+    fig, ax1 = plt.subplots(figsize=(6.5, 2.3), constrained_layout=True)
     ax1.semilogx(
         taus,
         align_median,
@@ -551,36 +551,9 @@ def main():
     ax2.set_ylabel("CovFrob", color=C_COVF)
     ax2.tick_params(axis="y", colors=C_COVF)
 
-    # Caption-style legend with redundant encoding (colour + marker + linestyle)
-    # so the two series remain distinguishable under grayscale printing.
-    proxy_align = mpl.lines.Line2D(
-        [],
-        [],
-        color=C_ALIGN,
-        linestyle="-",
-        marker="o",
-        markersize=4.2,
-        markeredgewidth=0,
-        label="Basis alignment",
-    )
-    proxy_covf = mpl.lines.Line2D(
-        [],
-        [],
-        color=C_COVF,
-        linestyle="--",
-        marker="s",
-        markersize=4.2,
-        markeredgewidth=0,
-        label="CovFrob",
-    )
-    ax1.legend(
-        handles=[proxy_align, proxy_covf],
-        loc="lower center",
-        ncol=2,
-        bbox_to_anchor=(0.5, -0.36),
-        handlelength=1.8,
-        columnspacing=1.8,
-    )
+    # Legend omitted: coloured y-axis labels (blue "Basis alignment" left,
+    # orange "CovFrob" right) already identify the two series redundantly
+    # through colour + axis label.
 
     path_a = OUTPUT_DIR / "performance_path.png"
     fig.savefig(path_a)
