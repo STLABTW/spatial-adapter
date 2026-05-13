@@ -28,7 +28,6 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
-
 dependencies = [
     "torch>=2.7.0",
     "numpy>=1.21.0",
@@ -74,6 +73,11 @@ dev = [
 all = [
     "spatial-adapter[vision,interactive,forecasting,dev]",
 ]
+
+[project.urls]
+Homepage = "https://github.com/STLABTW/spatial-adapter"
+Repository = "https://github.com/STLABTW/spatial-adapter"
+"Bug Tracker" = "https://github.com/STLABTW/spatial-adapter/issues"
 
 # scikit-build-core
 # Build backend for the pybind11/CMake C++ extension. Produces a platform
