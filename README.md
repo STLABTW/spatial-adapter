@@ -1,5 +1,10 @@
 # Spatial Adapter
 
+[![Tests](https://github.com/STLABTW/spatial-adapter/workflows/Test/badge.svg)](https://github.com/STLABTW/spatial-adapter/actions)
+[![codecov](https://codecov.io/github/STLABTW/spatial-adapter/graph/badge.svg?token=CODECOV_TOKEN)](https://codecov.io/github/STLABTW/spatial-adapter)
+[![arXiv](https://img.shields.io/badge/arXiv-2605.11394-b31b1b.svg)](https://arxiv.org/abs/2605.11394)
+<a href="https://pypi.org/project/spatial-adapter/"><img src="https://img.shields.io/pypi/v/spatial-adapter.svg?logo=pypi&label=PyPI&logoColor=silver" alt="PyPI version"/></a>
+
 A post-hoc cascade adapter that extracts explicit low-rank spatial representations from the residuals of any frozen first-stage predictor, yielding closed-form covariance estimation and uncertainty quantification.
 
 
@@ -121,12 +126,14 @@ make test-cov        # tests with HTML coverage
 ## Citation
 
 ```bibtex
-@inproceedings{spatial-adapter-2026,
-  title   = {Spatial Adapter: Closed-Form Covariance and Uncertainty
-             from Residual Representations},
-  author  = {Anonymous},
-  year    = {2026},
-  note    = {NeurIPS 2026 submission}
+@misc{wang2026spatialadapterstructuredspatial,
+      title={Spatial Adapter: Structured Spatial Decomposition and Closed-Form Covariance for Frozen Predictors},
+      author={Wen-Ting Wang and Wei-Ying Wu and Hao-Yun Huang and Xuan-Chun Wang},
+      year={2026},
+      eprint={2605.11394},
+      archivePrefix={arXiv},
+      primaryClass={stat.ML},
+      url={https://arxiv.org/abs/2605.11394},
 }
 ```
 
