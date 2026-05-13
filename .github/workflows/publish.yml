@@ -137,7 +137,7 @@ jobs:
       - name: Verify version matches pyproject.toml
         run: |
           PUBLISH_VERSION="${{ steps.get_version.outputs.version }}"
-          FILE_VERSION=$(grep -E '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+          FILE_VERSION=$(awk '/^\[project\]/{f=1} f && /^version = /{print; exit}' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
           if [ "$PUBLISH_VERSION" != "$FILE_VERSION" ]; then
             echo "Error: Version mismatch!"
             echo "Tag/Input version: $PUBLISH_VERSION"
