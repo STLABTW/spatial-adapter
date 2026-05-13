@@ -17,14 +17,42 @@ find_package(Python COMPONENTS Interpreter Development.Module REQUIRED)
 find_package(pybind11 CONFIG REQUIRED)
 
 # === Armadillo & BLAS/LAPACK ===
-# 1) macOS Homebrew
+# 1) macOS Homebrew (arm64 /opt/homebrew or Intel /usr/local)
 # 2) Conda (CONDA_PREFIX set)
 # 3) Linux system libs (e.g. apt: libarmadillo-dev libopenblas-dev)
-if(APPLE AND EXISTS "/opt/homebrew/lib/libarmadillo.dylib")
-    list(APPEND CMAKE_PREFIX_PATH "/opt/homebrew")
-    set(ARMADILLO_INCLUDE_DIRS "/opt/homebrew/include")
-    set(ARMADILLO_LIBRARIES "/opt/homebrew/lib/libarmadillo.dylib")
-    set(OPENBLAS_LIB "/opt/homebrew/lib/libopenblas.dylib")
+if(APPLE)
+    # Resolve Homebrew prefix dynamically (arm64 vs Intel)
+    execute_process(COMMAND brew --prefix
+                    OUTPUT_VARIABLE HOMEBREW_PREFIX
+                    OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+    if(NOT HOMEBREW_PREFIX)
+        set(HOMEBREW_PREFIX "/opt/homebrew")
+    endif()
+
+    list(APPEND CMAKE_PREFIX_PATH "${HOMEBREW_PREFIX}")
+
+    # armadillo — may or may not be keg-only depending on version
+    find_library(ARMADILLO_LIBRARIES NAMES armadillo
+        PATHS "${HOMEBREW_PREFIX}/lib"
+              "${HOMEBREW_PREFIX}/opt/armadillo/lib"
+        NO_DEFAULT_PATH)
+    find_path(ARMADILLO_INCLUDE_DIRS armadillo
+        PATHS "${HOMEBREW_PREFIX}/include"
+              "${HOMEBREW_PREFIX}/opt/armadillo/include"
+        NO_DEFAULT_PATH)
+
+    # openblas is keg-only on macOS — not linked into HOMEBREW_PREFIX/lib
+    find_library(OPENBLAS_LIB NAMES openblas
+        PATHS "${HOMEBREW_PREFIX}/lib"
+              "${HOMEBREW_PREFIX}/opt/openblas/lib"
+        NO_DEFAULT_PATH)
+
+    if(NOT ARMADILLO_LIBRARIES)
+        message(FATAL_ERROR "armadillo not found. Run: brew install armadillo")
+    endif()
+    if(NOT OPENBLAS_LIB)
+        message(FATAL_ERROR "openblas not found. Run: brew install openblas")
+    endif()
     set(LAPACK_LIB "${OPENBLAS_LIB}")
 elseif(DEFINED ENV{CONDA_PREFIX} AND NOT "$ENV{CONDA_PREFIX}" STREQUAL "")
     set(ARMADILLO_INCLUDE_DIRS "$ENV{CONDA_PREFIX}/include")
