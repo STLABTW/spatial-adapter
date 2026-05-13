@@ -6,7 +6,14 @@ build-backend = "scikit_build_core.build"
 name = "spatial-adapter"
 version = "0.6.0"
 description = "Neural spatial modeling with low-rank spatial adapters"
-authors = [{name = "Wen-Ting Wang", email = "egpivo@gmail.com"}]
+authors = [
+    {name = "Wen-Ting Wang", email = "egpivo@gmail.com"},
+    {name = "Hao-Yun Huang", email = "hhuscout@gms.ndhu.edu.tw"},
+    {name = "Xuan-Chun Wang", email = "wangxc1117@gmail.com"},
+]
+maintainers = [
+    {name = "Wen-Ting Wang", email = "egpivo@gmail.com"},
+]
 license = {text = "MIT"}
 readme = "README.md"
 requires-python = ">=3.10"
